@@ -1,0 +1,98 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+:root {
+  /* ── BACKGROUNDS ── */
+  --void:      #03050c;   /* deepest bg — almost black with blue tint */
+  --void2:     #070b16;   /* cards, terminal bg */
+  --void3:     #0b1120;   /* subtle surface lift */
+  --dim:       #172038;   /* borders, dividers */
+  --dimmer:    #0d1628;   /* hover backgrounds */
+
+  /* ── PRIMARY — Phosphor Green ── */
+  --phosphor:  #00ff88;   /* main accent — glowing green */
+  --phosphor2: #00cc6a;   /* muted green — secondary text, OK labels */
+  --phosphor3: #00331a;   /* very dark green — subtle borders, eyebrows */
+  --phosphorA: rgba(0,255,136,0.06);  /* green tint bg */
+
+  /* ── ACCENT — Amber ── */
+  --amber:     #ffb800;   /* warnings, year markers, XP ring */
+  --amber2:    #cc9200;   /* darker amber for lines */
+  --amberA:    rgba(255,184,0,0.08);  /* amber tint bg */
+
+  /* ── ACCENT — Cyan ── */
+  --cyan:      #00e5ff;   /* active nav, blog card underline */
+  --cyanA:     rgba(0,229,255,0.07);  /* cyan tint bg */
+
+  /* ── ACCENT — Red ── */
+  --red:       #ff3344;   /* glitch effect only */
+
+  /* ── TEXT ── */
+  --text:      #ccdae8;   /* primary body text */
+  --text2:     #6a7f98;   /* secondary / muted text */
+  --text3:     #2a3d58;   /* very dim text, labels, placeholders */
+
+  /* ── FONTS ── */
+  --mono:  var(--font-share-tech-mono), 'Courier New', monospace;
+  --sans:  var(--font-syne), sans-serif;
+  --smono: var(--font-syne-mono), monospace;
+}
+
+@theme {
+  --color-bg: var(--void);
+  --color-surface: var(--void2);
+  --color-fg: var(--text);
+  --color-muted: var(--text2);
+  --color-accent: var(--phosphor);
+  --color-border: var(--dim);
+  
+  --font-sans: var(--sans);
+  --font-display: var(--sans);
+  --font-mono: var(--mono);
+  --font-smono: var(--smono);
+}
+
+@layer base {
+  body {
+    @apply bg-bg text-fg font-sans antialiased selection:bg-accent selection:text-bg;
+    cursor: none; /* Hide default cursor for custom cursor */
+  }
+  
+  /* Hide scrollbar for cleaner look */
+  ::-webkit-scrollbar {
+    display: none;
+  }
+  * {
+    scrollbar-width: none;
+  }
+}
+
+.text-outline {
+  color: transparent;
+  -webkit-text-stroke: 1px var(--color-fg);
+}
+
+.text-outline:hover {
+  color: var(--color-accent);
+  -webkit-text-stroke: 1px var(--color-accent);
+  transition: all 0.3s ease;
+}
+
+.noise-bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 50;
+  opacity: 0.04;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
+}
+.animate-blink {
+  animation: blink 0.7s step-end infinite;
+}
