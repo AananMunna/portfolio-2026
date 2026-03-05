@@ -88,7 +88,9 @@ export default function Skills() {
   const isInView = useInView(containerRef, { once: true, amount: 0.1 });
 
   const [activeStep, setActiveStep] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(
+    typeof window !== "undefined" ? window.innerWidth >= 1024 : true,
+  );
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [likes, setLikes] = useState(0);

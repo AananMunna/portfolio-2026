@@ -148,6 +148,7 @@ useEffect(() => {
           y: springY,
           translateX: '-50%',
           translateY: '-50%',
+          visibility: hoveredProject && !selectedProject ? 'visible' : 'hidden'
         }}
         className="fixed top-0 left-0 w-[400px] h-[250px] pointer-events-none z-50 hidden md:block overflow-hidden rounded-2xl shadow-2xl"
       >
