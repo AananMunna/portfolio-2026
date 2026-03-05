@@ -12,7 +12,7 @@ const projects = [
     category: 'Travel Platform',
     image: 'https://picsum.photos/seed/triptale/1600/900',
     year: '2024',
-    description: 'A feature-rich travel storytelling platform where users can share personal travel experiences through posts, images, and maps. Includes authentication, dynamic routing, and a responsive UI with Tailwind and Framer Motion. Designed to foster a community of explorers and storytellers.',
+    description: 'Built for travelers who want to share stories, not just photos. Full auth, maps, community — shipped solo.',
     link: 'https://peppy-youtiao-479900.netlify.app/',
     github: 'https://github.com/AananMunna/trip-tale-client',
     tags: ['react', 'express', 'mongodb', 'tailwind']
@@ -23,14 +23,14 @@ const projects = [
     category: 'Study Platform',
     image: 'https://picsum.photos/seed/studysync/1600/900',
     year: '2024',
-    description: 'A full-stack group study platform where users can create, submit, and grade assignments. Includes user authentication, protected routes, modals, leaderboards, and a highly interactive UI built with Framer Motion.',
+    description: 'Turned the chaos of group assignments into a structured, gamified experience. Leaderboards included.',
     link: 'https://studysync-d270a.web.app/',
     github: 'https://github.com/AananMunna/studySync',
     tags: ['react', 'tailwind', 'express', 'mongodb']
   },
   {
     id: 3,
-    title: 'Gardening Hub',
+    title: 'Garden',
     category: 'E-Commerce / Social',
     image: 'https://picsum.photos/seed/gardening/1600/900',
     year: '2024',
@@ -41,11 +41,11 @@ const projects = [
   },
   {
     id: 4,
-    title: 'Othoba.com',
+    title: 'Othoba',
     category: 'E-Commerce',
     image: 'https://picsum.photos/seed/othoba/1600/900',
     year: '2024',
-    description: 'A fully responsive eCommerce website, built with React and Tailwind CSS. Features clean UI, dynamic routing, and fast-loading product pages for a smooth shopping experience.',
+    description: 'Pixel-perfect clone of a real BD e-commerce site. Proved I can match production-level UI standards.',
     link: 'https://clone-othoba.vercel.app/',
     github: 'https://github.com/AananMunna/othoba.com',
     tags: ['react', 'tailwind']
@@ -75,6 +75,22 @@ export default function Projects() {
   const springX = useSpring(mouseX, springConfig);
   const springY = useSpring(mouseY, springConfig);
 
+  const savedScrollY = useRef(0);
+
+useEffect(() => {
+  const lenis = (window as any).lenis;
+  if (selectedProject) {
+    savedScrollY.current = window.scrollY;
+    lenis?.stop();
+  } else {
+    lenis?.start();
+    lenis?.scrollTo(savedScrollY.current, { immediate: true, force: true });
+  }
+  return () => {
+    lenis?.start();
+  };
+}, [selectedProject]);
+
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       mouseX.set(e.clientX);
@@ -91,7 +107,7 @@ export default function Projects() {
           <h2 className="font-display text-4xl sm:text-6xl uppercase font-bold tracking-tighter">
             Selected <span className="text-accent italic">Works</span>
           </h2>
-          <span className="font-mono text-xs uppercase tracking-widest text-muted hidden sm:block">(04 Projects)</span>
+          <span className="font-mono text-xs uppercase tracking-widest text-muted hidden sm:block">(05 Projects)</span>
         </div>
 
         <div className="relative w-full flex flex-col" onMouseLeave={() => setHoveredProject(null)}>
@@ -245,7 +261,7 @@ export default function Projects() {
                   <h4 className="font-mono text-[10px] sm:text-xs uppercase tracking-widest text-muted mb-4 sm:mb-6 border-b border-border pb-4">Details</h4>
                   <ul className="space-y-3 sm:space-y-4 font-mono text-xs sm:text-sm">
                     <li className="flex justify-between"><span className="text-muted">Year</span> <span>{selectedProject.year}</span></li>
-                    <li className="flex justify-between"><span className="text-muted">Role</span> <span>Lead Developer</span></li>
+                    <li className="flex justify-between"><span className="text-muted">Role</span> <span>Sole Developer</span></li>
                   </ul>
                   
                   <h4 className="font-mono text-[10px] sm:text-xs uppercase tracking-widest text-muted mt-8 mb-4 sm:mb-6 border-b border-border pb-4">Technologies</h4>

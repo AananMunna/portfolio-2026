@@ -26,35 +26,59 @@ export default function Contact() {
           Let&apos;s Build <br />
           <span
             className="italic text-outline"
-            style={{ WebkitTextStroke: "1px var(--color-bg)" }}
+            style={{ WebkitTextStroke: "2px var(--color-bg)" }}
           >
             Together
           </span>
         </h2>
 
         <p className="max-w-md mx-auto mb-8 sm:mb-10 text-bg/80 font-medium text-sm sm:text-base px-4">
-          My inbox is always open. Whether you are hiring for a role, have a
-          question, or just want to say hi, I&apos;ll try my best to get back to
-          you!
+          I respond within 24 hours. Always. If you&apos;re building something
+          and need someone who ships — let&apos;s talk.
         </p>
 
+        {/* Email — mailto on click, tooltip on hover */}
         <a
           href="mailto:aananmunna420@gmail.com"
-          className="hover-target text-xl sm:text-3xl font-medium border-b-2 border-bg pb-2 hover:opacity-70 transition-opacity"
+          title="Click to send me an email"
+          className="hover-target group relative text-xl sm:text-3xl font-medium border-b-2 border-bg pb-2 hover:opacity-70 transition-opacity"
         >
           aananmunna420@gmail.com
+          {/* Tooltip */}
+          <span className="absolute -top-9 left-1/2 -translate-x-1/2 bg-bg text-accent text-xs font-mono px-3 py-1.5 rounded-full whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+            Click to email →
+          </span>
         </a>
+
+        <p className="mt-5 text-bg/50 font-mono text-xs uppercase tracking-widest">
+          — or find me on LinkedIn &amp; GitHub
+        </p>
       </motion.div>
 
       <div className="p-4 sm:p-8 flex flex-col sm:flex-row justify-between items-center sm:items-end gap-4 sm:gap-0 font-mono text-[10px] sm:text-xs uppercase tracking-widest border-t border-bg/20">
         <div className="flex gap-6 sm:gap-8">
-          <a href="#" className="hover-target hover:underline">
+          <a
+            href="https://x.com/aanan_munna"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover-target hover:underline"
+          >
             Twitter
           </a>
-          <a href="#" className="hover-target hover:underline">
+          <a
+            href="https://www.linkedin.com/in/aanan-munna/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover-target hover:underline"
+          >
             LinkedIn
           </a>
-          <a href="#" className="hover-target hover:underline">
+          <a
+            href="https://github.com/AananMunna"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover-target hover:underline"
+          >
             GitHub
           </a>
         </div>

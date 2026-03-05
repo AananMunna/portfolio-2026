@@ -32,8 +32,8 @@ export default function Home() {
         
         <Hero />
         <div id="about"><About /></div>
-        <div id="skills"><Skills /></div>
         <div id="experience"><Experience /></div>
+        <div id="skills"><Skills /></div>
         <div id="work"><Projects /></div>
         <div id="contact"><Contact /></div>
         

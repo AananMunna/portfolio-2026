@@ -128,7 +128,7 @@ export default function Hero() {
           >
             <div className="w-12 h-[1px] bg-accent/50"></div>
             <p className="font-mono text-xs sm:text-sm uppercase tracking-[0.3em] text-muted">
-              Creative Front-End Developer
+              Front-End Developer  ·  Full-Stack Capable
             </p>
             <div className="w-12 h-[1px] bg-accent/50"></div>
           </motion.div>
