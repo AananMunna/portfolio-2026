@@ -21,8 +21,8 @@ const syneMono = Syne_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Award-Winning Portfolio | Front-End Developer',
-  description: 'A cutting-edge front-end developer portfolio designed to win awards.',
+  title: 'Aanan | Front-End Developer',
+  description: 'A cutting-edge front-end developer portfolio',
 };
 
 export default function RootLayout({children}: {children: React.ReactNode}) {

@@ -57,14 +57,14 @@ export default function Contact() {
 
       <div className="p-4 sm:p-8 flex flex-col sm:flex-row justify-between items-center sm:items-end gap-4 sm:gap-0 font-mono text-[10px] sm:text-xs uppercase tracking-widest border-t border-bg/20">
         <div className="flex gap-6 sm:gap-8">
-          <a
+          {/* <a
             href="https://x.com/aanan_munna"
             target="_blank"
             rel="noopener noreferrer"
             className="hover-target hover:underline"
           >
             Twitter
-          </a>
+          </a> */}
           <a
             href="https://www.linkedin.com/in/aanan-munna/"
             target="_blank"
