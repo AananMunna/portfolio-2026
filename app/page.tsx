@@ -17,7 +17,6 @@ export default function Home() {
   const [bootComplete, setBootComplete] = useState(false);
 
   useEffect(() => {
-    // Force scroll to top on reload
     window.scrollTo(0, 0);
   }, []);
 
@@ -28,7 +27,10 @@ export default function Home() {
       <main className={`relative bg-bg min-h-screen transition-opacity duration-1000 ease-in-out ${bootComplete ? 'opacity-100' : 'opacity-0 h-screen overflow-hidden'}`}>
         <CustomCursor />
         <Navbar />
-        <SystemPrefsDrawer />
+
+        <div className="hidden md:block">
+          <SystemPrefsDrawer />
+        </div>
         
         <Hero />
         <div id="about"><About /></div>
@@ -37,7 +39,9 @@ export default function Home() {
         <div id="work"><Projects /></div>
         <div id="contact"><Contact /></div>
         
-        <ChatAssistant />
+        <div className="hidden md:block">
+          <ChatAssistant />
+        </div>
       </main>
     </>
   );

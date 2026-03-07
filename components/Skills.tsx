@@ -89,7 +89,8 @@ export default function Skills() {
 
   const [activeStep, setActiveStep] = useState(0);
   const [isPlaying, setIsPlaying] = useState(
-    typeof window !== "undefined" ? window.innerWidth >= 1024 : true,
+    // typeof window !== "undefined" ? window.innerWidth >= 1024 : true,
+    false
   );
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -495,7 +496,7 @@ export default function Skills() {
                 <RefreshCw className="w-3 h-3" /> Reset
               </button>
               <div className="flex items-center gap-3">
-                <button
+                {/* <button
                   onClick={togglePlay}
                   className="text-xs font-mono text-muted hover:text-white transition-colors flex items-center gap-1.5"
                 >
@@ -508,7 +509,7 @@ export default function Skills() {
                       <Play className="w-3 h-3" /> Auto-play
                     </>
                   )}
-                </button>
+                </button> */}
                 {activeStep < steps.length - 1 && (
                   <button
                     onClick={() => handleStepClick(activeStep + 1)}
