@@ -178,26 +178,26 @@ export default function Skills() {
     if (activeStep === 0) {
       return (
         <div
-          className="w-full h-full bg-white text-black flex flex-col"
-          style={{ fontFamily: "Times New Roman, serif" }}
+          className="w-full h-full flex flex-col"
+          style={{ fontFamily: "monospace", background: "#0d0d0d", color: "#c9c9c9" }}
         >
           <div style={{ padding: "14px", overflowY: "auto", flex: 1 }}>
-            <h1 style={{ fontSize: "1.3em", fontWeight: "bold", margin: "0.3em 0" }}>User Profile</h1>
-            <img src="https://picsum.photos/seed/aanan/150/150" alt="Avatar" style={{ width: "60px", height: "60px" }} />
-            <h2 style={{ fontSize: "1.05em", fontWeight: "bold", margin: "0.3em 0" }}>AANAN</h2>
+            <h1 style={{ fontSize: "1.3em", fontWeight: "bold", margin: "0.3em 0", color: "#e8e8e8" }}>User Profile</h1>
+            <img src="https://picsum.photos/seed/aanan/150/150" alt="Avatar" style={{ width: "60px", height: "60px", filter: "grayscale(30%)" }} />
+            <h2 style={{ fontSize: "1.05em", fontWeight: "bold", margin: "0.3em 0", color: "#e8e8e8" }}>AANAN</h2>
             <p style={{ margin: "0.3em 0", fontSize: "0.78em" }}>Frontend Specialist | MERN</p>
             <p style={{ margin: "0.3em 0", fontSize: "0.78em" }}>Crafting pixel-perfect UIs, powered by robust backends.</p>
-            <ul style={{ paddingInlineStart: "18px", margin: "0.3em 0", fontSize: "0.78em" }}>
+            <ul style={{ paddingInlineStart: "18px", margin: "0.3em 0", fontSize: "0.78em", color: "#a0a0a0" }}>
               <li>Status: Online</li>
               <li>Followers: {isFollowing ? 1025 : 1024}</li>
               <li>Likes: {likes}</li>
             </ul>
           </div>
-          <div style={{ borderTop: "1px solid #ccc", padding: "8px 14px", display: "flex", gap: "8px", background: "#fff", flexShrink: 0 }}>
-            <button style={{ padding: "3px 10px", fontSize: "0.78em", cursor: "pointer" }} onClick={() => handleInteraction("follow")}>
+          <div style={{ borderTop: "1px solid #2a2a2a", padding: "8px 14px", display: "flex", gap: "8px", background: "#0d0d0d", flexShrink: 0 }}>
+            <button style={{ padding: "3px 10px", fontSize: "0.78em", cursor: "pointer", background: "#1e1e1e", color: "#c9c9c9", border: "1px solid #3a3a3a" }} onClick={() => handleInteraction("follow")}>
               {isFollowing ? "Following" : "Follow"}
             </button>
-            <button style={{ padding: "3px 10px", fontSize: "0.78em", cursor: "pointer" }} onClick={() => handleInteraction("like")}>
+            <button style={{ padding: "3px 10px", fontSize: "0.78em", cursor: "pointer", background: "#1e1e1e", color: "#c9c9c9", border: "1px solid #3a3a3a" }} onClick={() => handleInteraction("like")}>
               Like
             </button>
           </div>
