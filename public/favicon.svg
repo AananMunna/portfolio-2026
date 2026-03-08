@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00FF87"/>
+      <stop offset="100%" stop-color="#00CC6A"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background: near-black with subtle rounded corners -->
+  <rect width="32" height="32" rx="5" fill="#0D0D0D"/>
+
+  <!-- Green accent bar — top edge, like a loading bar / brand strip -->
+  <rect x="0" y="0" width="32" height="2" rx="1" fill="url(#g)"/>
+
+  <!--
+    "A" — electric green, left-aligned, bold geometric
+    Built from two angled strokes + crossbar
+  -->
+  <!-- A left leg -->
+  <polygon points="3,25 7.5,7 9.5,7 8,13 5,25" fill="url(#g)"/>
+  <!-- A right leg -->
+  <polygon points="12,25 9.5,7 11.5,7 15,25" fill="url(#g)"/>
+  <!-- A crossbar -->
+  <rect x="5.5" y="17.5" width="7" height="2" fill="url(#g)"/>
+
+  <!--
+    "M" — white, right-aligned
+    Two vertical strokes with a V notch in between
+  -->
+  <!-- M left leg -->
+  <rect x="17" y="7" width="2.2" height="18" rx="0.3" fill="#FFFFFF"/>
+  <!-- M right leg -->
+  <rect x="26.8" y="7" width="2.2" height="18" rx="0.3" fill="#FFFFFF"/>
+  <!-- M left diagonal -->
+  <polygon points="17,7 19.2,7 23,15.5 20.8,15.5" fill="#FFFFFF"/>
+  <!-- M right diagonal -->
+  <polygon points="29,7 26.8,7 23,15.5 25.2,15.5" fill="#FFFFFF"/>
+</svg>
