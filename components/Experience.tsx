@@ -14,14 +14,8 @@ const experiences = [
     description:
       "Joined as Front-End, grew into full-stack delivery. I own the complete feature lifecycle — from ER diagram and REST API design to Redux state management and frontend integration. When a feature ships, I've touched every layer of it.",
     tech: [
-      "React",
-      "Next.js",
-      "TypeScript",
-      "Redux",
-      "REST API",
-      "Node.js",
-      "Express.js",
-      "MongoDB",
+      "React", "Next.js", "TypeScript", "Redux",
+      "REST API", "Node.js", "Express.js", "MongoDB",
     ],
   },
   {
@@ -33,12 +27,8 @@ const experiences = [
     description:
       "Converted pixel-perfect Figma designs into production-ready React/Next.js code. Built the muscle for clean component architecture and design-to-code precision — fast.",
     tech: [
-      "React",
-      "Next.js",
-      "Figma-to-Code",
-      "CSS/SCSS",
-      "Tailwind CSS",
-      "Framer Motion",
+      "React", "Next.js", "Figma-to-Code",
+      "CSS/SCSS", "Tailwind CSS", "Framer Motion",
     ],
   },
 ];
@@ -67,9 +57,7 @@ export default function Experience() {
                 key={exp.id}
                 className="relative pl-8 md:pl-0"
                 initial={{ opacity: 0, y: 40 }}
-                animate={
-                  isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 40 }
-                }
+                animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 40 }}
                 transition={{
                   duration: 0.8,
                   delay: index * 0.2,
@@ -89,23 +77,28 @@ export default function Experience() {
                   </span>
                 </div>
 
+                {/* Company name — highlighted in accent + arrow */}
                 <Link
                   href={exp.href}
                   target="_blank"
-                  className="font-mono text-lg text-muted mb-6 uppercase tracking-wider"
+                  className="hover-target group inline-flex items-center gap-1.5 font-mono text-lg text-accent mb-6 uppercase tracking-wider hover:opacity-70 transition-opacity"
                 >
                   @ {exp.company}
+                  <span className="text-accent/50 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform duration-200">
+                    ↗
+                  </span>
                 </Link>
 
                 <p className="text-lg sm:text-xl text-fg/80 leading-relaxed mb-8 mt-4 max-w-2xl">
                   {exp.description}
                 </p>
 
+                {/* Tech pills — highlighted with accent glow on hover */}
                 <div className="flex flex-wrap gap-3">
                   {exp.tech.map((tech, i) => (
                     <span
                       key={i}
-                      className="font-mono text-xs border border-border text-muted px-3 py-1 rounded-full"
+                      className="font-mono text-xs border border-accent/30 text-accent/70 px-3 py-1 rounded-full transition-all duration-200 hover:border-accent hover:text-accent hover:bg-accent/10 cursor-default"
                     >
                       {tech}
                     </span>

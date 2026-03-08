@@ -57,29 +57,36 @@ export default function About() {
           </p>
 
           <div className="mt-16 grid grid-cols-1 sm:grid-cols-2 gap-12">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-20%" }}
-              transition={{ duration: 0.8, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
-            >
-              <h3 className="font-mono text-xs uppercase tracking-widest text-accent mb-6 border-b border-white/10 pb-4">WHAT MAKES ME DIFFERENT</h3>
-              <p className="text-muted leading-relaxed text-lg">
-                I understand both sides — design and engineering. Most developers build what's given to them. I question whether it should be built differently. That gap between "it works" and "it feels right" is exactly where I live.
-              </p>
-            </motion.div>
+           <motion.div
+  initial={{ opacity: 0, y: 20 }}
+  whileInView={{ opacity: 1, y: 0 }}
+  viewport={{ once: true, margin: "-20%" }}
+  transition={{ duration: 0.8, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+>
+  <h3 className="font-mono text-xs uppercase tracking-widest text-accent mb-6 border-b border-white/10 pb-4">
+    WHAT MAKES ME DIFFERENT
+  </h3>
+  <p className="text-fg/70 leading-relaxed text-lg">
+    I understand both sides — design and engineering. Most developers build what's
+    given to them. I question whether it should be built differently. That gap between
+    "it works" and "it feels right" is exactly where I live.
+  </p>
+</motion.div>
 
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-20%" }}
-              transition={{ duration: 0.8, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
-            >
-              <h3 className="font-mono text-xs uppercase tracking-widest text-accent mb-6 border-b border-white/10 pb-4">WHAT YOU ACTUALLY GET</h3>
-              <p className="text-muted leading-relaxed text-lg">
-                Someone who ships. Someone who communicates before problems become problems. I don't wait to be told — I notice, I flag it, I fix it. You won't have to chase me.
-              </p>
-            </motion.div>
+<motion.div
+  initial={{ opacity: 0, y: 20 }}
+  whileInView={{ opacity: 1, y: 0 }}
+  viewport={{ once: true, margin: "-20%" }}
+  transition={{ duration: 0.8, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
+>
+  <h3 className="font-mono text-xs uppercase tracking-widest text-accent mb-6 border-b border-white/10 pb-4">
+    WHAT YOU ACTUALLY GET
+  </h3>
+  <p className="text-fg/70 leading-relaxed text-lg">
+    Someone who ships. Someone who communicates before problems become problems.
+    I don't wait to be told — I notice, I flag it, I fix it. You won't have to chase me.
+  </p>
+</motion.div>
           </div>
         </div>
       </div>

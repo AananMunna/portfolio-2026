@@ -121,17 +121,19 @@ export default function Hero() {
           </motion.div>
 
           <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 1.5, duration: 1 }}
-            className="mt-12 flex items-center gap-4"
-          >
-            <div className="w-12 h-[1px] bg-accent/50"></div>
-            <p className="font-mono text-xs sm:text-sm uppercase tracking-[0.3em] text-muted">
-              Front-End Developer  ·  Full-Stack Capable
-            </p>
-            <div className="w-12 h-[1px] bg-accent/50"></div>
-          </motion.div>
+  initial={{ opacity: 0, y: 20 }}
+  animate={{ opacity: 1, y: 0 }}
+  transition={{ delay: 1.5, duration: 1 }}
+  className="mt-12 flex items-center gap-4"
+>
+  <div className="w-12 h-[1px] bg-accent/50"></div>
+<p className="font-mono text-sm sm:text-lg uppercase tracking-[0.3em] text-fg font-medium">
+    Front-End Developer
+    <span className="text-accent mx-3">·</span>
+    Full-Stack Capable
+  </p>
+  <div className="w-12 h-[1px] bg-accent/50"></div>
+</motion.div>
         </motion.div>
       </motion.div>
     </section>
