@@ -222,7 +222,7 @@ User asked: ${userMessage}
           >
             {/* Pulse ring */}
             <span className="absolute inset-0 rounded-full bg-accent/30 animate-ping" />
-            <div className="relative w-16 h-16 bg-bg border border-accent/40 rounded-full flex flex-col items-center justify-center shadow-[0_0_24px_rgba(0,255,136,0.2)] gap-0.5">
+            <div className="relative w-14 h-14 bg-bg border border-accent/40 rounded-full flex flex-col items-center justify-center shadow-[0_0_24px_rgba(0,255,136,0.2)] gap-0.5">
               <Zap size={20} className="text-accent" />
               <span className="font-mono text-[8px] text-accent tracking-widest uppercase">
                 NOVA
