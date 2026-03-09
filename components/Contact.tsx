@@ -49,17 +49,16 @@ export default function Contact() {
             Click to email →
           </span>
         </a>
-<a
-          href="tel:+1234567890"
-  title="Click to call me"
-  className="hover-target group relative text-lg sm:text-2xl font-medium border-b-2 border-bg/40 pb-2 hover:opacity-70 transition-opacity mt-3"
->
-  +8801310468353
-
-  <span className="absolute -top-9 left-1/2 -translate-x-1/2 bg-bg text-accent text-xs font-mono px-3 py-1.5 rounded-full whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
-    Click to call →
-  </span>
-</a>
+        <a
+          href="tel:+8801310468353"
+          title="Click to call me"
+          className="hover-target group relative text-lg sm:text-2xl font-medium border-b-2 border-bg/40 pb-2 hover:opacity-70 transition-opacity mt-3"
+        >
+          +8801310468353
+          <span className="absolute -top-9 left-1/2 -translate-x-1/2 bg-bg text-accent text-xs font-mono px-3 py-1.5 rounded-full whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+            Click to call →
+          </span>
+        </a>
 
         <p className="mt-5 text-bg/50 font-mono text-xs uppercase tracking-widest">
           — or find me on LinkedIn &amp; GitHub
