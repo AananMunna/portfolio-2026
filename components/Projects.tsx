@@ -105,7 +105,7 @@ useEffect(() => {
       <section className="py-32 px-4 sm:px-8 max-w-7xl mx-auto relative z-20 bg-bg" id="work">
         <div className="mb-16 md:mb-24 flex justify-between items-end border-b border-border pb-8">
           <h2 className="font-display text-4xl sm:text-6xl uppercase font-bold tracking-tighter">
-            Featured <span className="text-accent italic">Project</span>
+            Selected  <span className="text-accent italic">Works</span>
           </h2>
           <span className="font-mono text-xs uppercase tracking-widest text-muted hidden sm:block">(05 Projects)</span>
         </div>

@@ -10,7 +10,7 @@ const sections = [
   { id: 'skills', title: 'Capabilities', icon: Code2, target: '#skills', color: 'from-pink-500/20 to-rose-500/20' },
   { id: 'experience', title: 'Timeline', icon: Briefcase, target: '#experience', color: 'from-indigo-500/20 to-cyan-500/20' },
   { id: 'work', title: 'Selected Works', icon: FolderGit2, target: '#work', color: 'from-amber-500/20 to-yellow-500/20' },
-  { id: 'contact', title: 'Initialize', icon: Mail, target: '#contact', color: 'from-green-500/20 to-emerald-500/20' },
+  { id: 'contact', title: "LET'S TALK", icon: Mail, target: '#contact', color: 'from-green-500/20 to-emerald-500/20' },
 ];
 
 export default function Navbar() {

@@ -36,7 +36,7 @@ export default function Home() {
         <Hero />
         <div id="work"><Projects /></div>
         <div id="experience"><Experience /></div>
-        <div id="tech-skills"><TechSkills /></div>
+        <div id="skills"><TechSkills /></div>
         {/* <div id="skills"><Skills /></div> */}
         <div id="about"><About /></div>
         <div id="contact"><Contact /></div>
