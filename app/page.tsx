@@ -7,6 +7,7 @@ import Hero from '@/components/Hero';
 import About from '@/components/About';
 import SystemPrefsDrawer from '@/components/SystemPrefsDrawer';
 import Skills from '@/components/Skills';
+import TechSkills from '@/components/TechSkills';
 import Experience from '@/components/Experience';
 import Projects from '@/components/Projects';
 import Contact from '@/components/Contact';
@@ -33,10 +34,11 @@ export default function Home() {
         </div>
         
         <Hero />
-        <div id="about"><About /></div>
-        <div id="experience"><Experience /></div>
-        <div id="skills"><Skills /></div>
         <div id="work"><Projects /></div>
+        <div id="experience"><Experience /></div>
+        <div id="tech-skills"><TechSkills /></div>
+        {/* <div id="skills"><Skills /></div> */}
+        <div id="about"><About /></div>
         <div id="contact"><Contact /></div>
         
         <div className="hidden md:block">
