@@ -5,19 +5,19 @@ import Link from "next/link";
 import { useRef } from "react";
 
 const experiences = [
-  {
-    id: 1,
-    company: "Al Jaami Technologies",
-    href: "https://www.aljaami.co.uk/",
-    role: "Front-End Developer",
-    period: "Present",
-    description:
-      "Joined as Front-End, grew into full-stack delivery. I own the complete feature lifecycle — from ER diagram and REST API design to Redux state management and frontend integration. When a feature ships, I've touched every layer of it.",
-    tech: [
-      "React", "Next.js", "TypeScript", "Redux",
-      "REST API", "Node.js", "Express.js", "MongoDB",
-    ],
-  },
+ {
+  id: 1,
+  company: "Al Jaami Technologies",
+  href: "https://www.aljaami.co.uk/",
+  role: "MERN Stack Developer",
+  period: "Present",
+  description:
+    "Full-stack ownership from day one — I architect the data model, design the REST API, wire up the business logic in Node/Express, and ship the React UI with bulletproof Redux state. Features don't leave my hands until every layer is production-ready.",
+  tech: [
+    "MongoDB", "Express.js", "React", "Node.js",
+    "Next.js", "TypeScript", "Redux", "REST API",
+  ],
+},
   {
     id: 2,
     company: "CodeCareBD",
