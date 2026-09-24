@@ -29,9 +29,9 @@ export default function Home() {
         <CustomCursor />
         <Navbar />
 
-        <div className="hidden md:block">
+        {/* <div className="hidden md:block">
           <SystemPrefsDrawer />
-        </div>
+        </div> */}
         
         <Hero />
         <div id="work"><Projects /></div>
@@ -41,9 +41,9 @@ export default function Home() {
         <div id="about"><About /></div>
         <div id="contact"><Contact /></div>
         
-        <div className="hidden md:block">
+        {/* <div className="hidden md:block">
           <ChatAssistant />
-        </div>
+        </div> */}
       </main>
     </>
   );
