@@ -854,11 +854,11 @@ export default function ProjectsWorld({ projects, onOpen }: Props) {
         />
 
         {/* top left counter */}
-        <div className="pointer-events-none absolute left-5 top-8 z-10 sm:left-8 lg:left-12">
+        {/* <div className="pointer-events-none absolute left-5 top-8 z-10 sm:left-8 lg:left-12">
           <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-muted/70">
             {pad(active + 1)} — {pad(N)}
           </p>
-        </div>
+        </div> */}
 
         {/* quiet hint */}
         <motion.div
@@ -867,7 +867,7 @@ export default function ProjectsWorld({ projects, onOpen }: Props) {
           transition={{ duration: 0.6 }}
           className="pointer-events-none absolute right-5 top-8 z-10 hidden font-mono text-[10px] uppercase tracking-[0.28em] text-muted/60 sm:right-8 sm:block lg:right-12"
         >
-          drag · scroll · ← →
+          {/* drag · scroll · ← → */}
         </motion.div>
 
         {/* ─── project info + actions ─── */}
