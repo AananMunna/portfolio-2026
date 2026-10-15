@@ -140,11 +140,12 @@ export default function Navbar() {
           ))}
 
           <a
-            href="/Aanan_Munna_Resume.pdf"
+            href="https://drive.google.com/file/d/16EQTbsNKgqJtd5NTvhQKBQwdajvfPtOT/view?usp=sharing"
+            target='_blank'
             download
             className="ml-6 px-4 py-2 border border-accent/80 text-accent text-[11px] font-mono uppercase tracking-[0.15em] rounded-sm hover:bg-accent hover:text-black transition-all duration-300 hover-target flex items-center gap-2"
           >
-            Download Resume
+            Resume
           </a>
         </div>
 

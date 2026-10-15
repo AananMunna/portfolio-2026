@@ -34,11 +34,11 @@ export default function Home() {
         </div> */}
         
         <Hero />
-        <div id="work"><Projects /></div>
+        <div id="about"><About /></div>
         <div id="experience"><Experience /></div>
+        <div id="work"><Projects /></div>
         <div id="skills"><TechSkills /></div>
         {/* <div id="skills"><Skills /></div> */}
-        <div id="about"><About /></div>
         <div id="contact"><Contact /></div>
         
         {/* <div className="hidden md:block">
