@@ -201,7 +201,7 @@ export default function Navbar() {
         transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
         className="fixed top-0 left-0 w-full z-50 pointer-events-none mix-blend-difference"
       >
-        <div className="flex items-center justify-between px-5 sm:px-8 lg:px-12 py-5 lg:py-7">
+        <div className="flex items-center justify-between px-5 sm:px-8 lg:px-10 py-5 lg:py-5">
           {/* Logo */}
           <button
             onClick={() => scrollTo("body")}

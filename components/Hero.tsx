@@ -2,7 +2,7 @@
 
 import { motion, useMotionValue, useSpring, useTransform } from "motion/react";
 import { useEffect, useState } from "react";
-import { Github, Linkedin, Instagram, Facebook, Download, Twitter } from "lucide-react";
+import { Github, Linkedin, Instagram, Facebook, Twitter } from "lucide-react";
 
 const PHOTO_SRC =
   "https://res.cloudinary.com/dtiotqi9q/image/upload/v1790229722/ChatGPT_Image_Sep_24_2026_12_01_47_PM_hl5xrw.png";
@@ -120,23 +120,34 @@ export default function Hero() {
             transition={{ duration: 0.7, delay: 0.75, ease: [0.16, 1, 0.3, 1] }}
             className="mt-8 max-w-md"
           >
-            <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-accent/90 sm:text-xs">
-              Full Stack Developer
-            </p>
-            <p className="mt-3 text-[15px] leading-relaxed text-muted sm:text-base">
-              I build scalable web applications and exceptional digital experiences.
-              Focused on clean code, performance, and intuitive design.
+            {/* Highlighted Role */}
+            <div className="inline-flex flex-col items-center lg:items-start">
+              <p className="font-mono text-[13px] sm:text-[15px] font-semibold uppercase tracking-[0.28em] text-accent">
+                Full Stack Developer
+              </p>
+
+              {/* Animated underline */}
+              <motion.div
+                initial={reduce ? false : { scaleX: 0 }}
+                animate={{ scaleX: 1 }}
+                transition={{ duration: 0.85, delay: 1.05, ease: [0.16, 1, 0.3, 1] }}
+                className="mt-2.5 h-[2px] w-full origin-left bg-gradient-to-r from-accent via-accent/70 to-transparent"
+              />
+            </div>
+
+            {/* Short senior description */}
+            <p className="mt-5 text-[15px] leading-relaxed text-muted sm:text-base">
+              I design and build scalable systems with clean architecture, strong performance, and production-ready quality.
             </p>
           </motion.div>
 
-          {/* Socials + Resume Button */}
+          {/* Socials */}
           <motion.div
             initial={reduce ? false : { opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 1.0, ease: [0.16, 1, 0.3, 1] }}
             className="mt-9 flex flex-col items-center gap-6 sm:flex-row sm:items-center lg:items-start"
           >
-            {/* Social Icons */}
             <div className="flex items-center gap-4">
               {socials.map((social) => {
                 const Icon = social.icon;
@@ -154,16 +165,6 @@ export default function Hero() {
                 );
               })}
             </div>
-
-            {/* Download Resume */}
-            {/* <a
-              href="/Aanan_Munna_Resume.pdf"
-              download
-              className="inline-flex items-center gap-2.5 px-5 py-2.5 border border-accent/70 text-accent text-[12px] font-mono uppercase tracking-[0.12em] rounded-sm hover:bg-accent hover:text-black transition-all duration-300 hover-target"
-            >
-              Download Resume
-              <Download size={14} strokeWidth={2} />
-            </a> */}
           </motion.div>
         </div>
 

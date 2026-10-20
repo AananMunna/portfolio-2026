@@ -4,10 +4,10 @@ import { useState, useEffect } from 'react';
 
 const bootLines = [
   { text: 'BIOS v4.0.1 · Copyright (C) 2025 · AM Systems', type: 'dim' },
-  { text: 'CPU: AANAN MUNNA FRONTEND ENGINE v5.0 · 4 Core · 8 Threads', type: 'normal' },
+  { text: 'CPU: AANAN MUNNA FULLSTACK ENGINE v5.0 · 4 Core · 8 Threads', type: 'normal' },
   { text: 'RAM: 16384MB OK · VRAM: 8192MB OK', type: 'dim' },
   { text: 'Loading core modules...', type: 'normal' },
-  { text: '  [OK] react.skill → v18.3.1', type: 'ok' },
+  { text: '  [OK] express.skill → v18.3.1', type: 'ok' },
   { text: '  [OK] nextjs.skill → v15.0.0', type: 'ok' },
   { text: '  [OK] typescript.skill → v5.4', type: 'ok' },
   { text: '  [OK] animation.engine → GSAP v3.12', type: 'ok' },

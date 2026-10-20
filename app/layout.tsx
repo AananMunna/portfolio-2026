@@ -21,7 +21,7 @@ const syneMono = Syne_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Aanan | Front-End Developer',
+  title: 'Aanan | Full Stack Developer',
   description: 'A cutting-edge front-end developer portfolio',
   icons: {
     icon: [
