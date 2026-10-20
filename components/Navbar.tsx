@@ -85,6 +85,27 @@ export default function Navbar() {
   const [fromDesktop, setFromDesktop] = useState(false);
   const [activeSection, setActiveSection] = useState("home");
   const [isHoveringDock, setIsHoveringDock] = useState(false);
+  const [hideDock, setHideDock] = useState(false);
+
+// Hide bottom dock while Projects section is in view
+useEffect(() => {
+  const work = document.getElementById('work');
+  if (!work) return;
+
+  const observer = new IntersectionObserver(
+    ([entry]) => {
+      // Hide dock when a good portion of the projects section is visible
+      setHideDock(entry.isIntersecting && entry.intersectionRatio > 0.15);
+    },
+    {
+      threshold: [0, 0.15, 0.3, 0.5],
+      rootMargin: '-10% 0px -10% 0px',
+    }
+  );
+
+  observer.observe(work);
+  return () => observer.disconnect();
+}, []);
 
   // Scroll detection
   useEffect(() => {

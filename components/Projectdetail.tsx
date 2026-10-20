@@ -1,22 +1,48 @@
 'use client';
 
 import {
+  animate,
   motion,
+  useInView,
   useMotionValueEvent,
   useReducedMotion,
   useScroll,
   useSpring,
+  useTransform,
 } from 'motion/react';
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from 'react';
 import Image from 'next/image';
-import { ArrowLeft, ArrowRight, ArrowUpRight, Check, ExternalLink, Github, X } from 'lucide-react';
-import type { Project } from './Projectsdata';
+import { ArrowLeft, ArrowRight, ArrowUpRight, Github, X } from 'lucide-react';
+import { projects, type Project } from './Projectsdata';
 
-/* ───────── helpers ───────── */
+/* -------------------------------------------------------------------------- */
+/*  Helpers                                                                   */
+/* -------------------------------------------------------------------------- */
+
 const pad = (n: number) => String(n).padStart(2, '0');
 const EASE = [0.16, 1, 0.3, 1] as const;
+const CURTAIN_EASE = [0.76, 0, 0.24, 1] as const;
 
-const STACK: Record<string, { label: string; group: 'Frontend' | 'Backend' | 'Database' | 'Other' }> = {
+/** Optional fields — add any of these to a project in Projectsdata to light up extra sections. */
+type Extra = {
+  client?: string;
+  timeline?: string;
+  gallery?: string[];
+  results?: { value: number; suffix?: string; label: string; desc?: string }[];
+};
+
+const STACK: Record<
+  string,
+  { label: string; group: 'Frontend' | 'Backend' | 'Database' | 'Other' }
+> = {
   react: { label: 'React', group: 'Frontend' },
   tailwind: { label: 'Tailwind CSS', group: 'Frontend' },
   express: { label: 'Express.js', group: 'Backend' },
@@ -30,21 +56,102 @@ function groupStack(tags: string[]) {
     const s = STACK[t.toLowerCase()] ?? { label: t, group: 'Other' as const };
     map.set(s.group, [...(map.get(s.group) ?? []), s.label]);
   }
-  return GROUP_ORDER.filter((g) => map.has(g)).map((g) => ({ group: g, items: map.get(g)! }));
+  return GROUP_ORDER.filter((g) => map.has(g)).map((g) => ({
+    group: g,
+    items: map.get(g)!,
+  }));
 }
 
-function hostOf(url: string) {
-  try {
-    return new URL(url).hostname.replace(/^www\./, '');
-  } catch {
-    return url;
-  }
+const tagLabel = (t: string) => STACK[t.toLowerCase()]?.label ?? t;
+
+/* -------------------------------------------------------------------------- */
+/*  Smooth scroll for the overlay's own scroll container                      */
+/*                                                                            */
+/*  The overlay scrolls inside its own element (not the window), and it is    */
+/*  marked data-lenis-prevent so the site-wide Lenis ignores it — that's why  */
+/*  it used to scroll natively. This hook gives it the same eased feel.       */
+/* -------------------------------------------------------------------------- */
+
+function useSmoothScroll(ref: RefObject<HTMLElement | null>, enabled: boolean) {
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !enabled) return;
+
+    let target = el.scrollTop;
+    let current = el.scrollTop;
+    let raf = 0;
+    let running = false;
+    let last = 0;
+
+    const max = () => Math.max(0, el.scrollHeight - el.clientHeight);
+
+    const tick = (now: number) => {
+      const dt = Math.min(now - last, 64);
+      last = now;
+      // frame-rate independent easing (~90ms time constant)
+      current += (target - current) * (1 - Math.exp(-dt / 90));
+      if (Math.abs(target - current) < 0.4) {
+        current = target;
+        running = false;
+      }
+      el.scrollTop = current;
+      if (running) raf = requestAnimationFrame(tick);
+    };
+
+    const onWheel = (e: WheelEvent) => {
+      if (e.ctrlKey) return; // pinch-zoom
+      e.preventDefault();
+
+      let dy = e.deltaY;
+      if (e.deltaMode === 1) dy *= 32;
+      else if (e.deltaMode === 2) dy *= el.clientHeight;
+
+      if (!running) {
+        current = el.scrollTop;
+        target = el.scrollTop;
+      }
+      target = Math.min(max(), Math.max(0, target + dy));
+
+      if (!running) {
+        running = true;
+        last = performance.now();
+        raf = requestAnimationFrame(tick);
+      }
+    };
+
+    // keep in sync when scrolled by keyboard, scrollbar drag, scrollTo(), etc.
+    const onScroll = () => {
+      if (!running) {
+        target = el.scrollTop;
+        current = el.scrollTop;
+      }
+    };
+
+    el.addEventListener('wheel', onWheel, { passive: false });
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      cancelAnimationFrame(raf);
+      el.removeEventListener('wheel', onWheel);
+      el.removeEventListener('scroll', onScroll);
+    };
+  }, [ref, enabled]);
 }
 
-/* ───────── scroll-root context so whileInView works inside the overlay ───────── */
+/* -------------------------------------------------------------------------- */
+/*  Reveal primitives                                                         */
+/* -------------------------------------------------------------------------- */
+
 const RootCtx = createContext<RefObject<HTMLElement | null> | null>(null);
 
-function Reveal({ children, delay = 0, className }: { children: ReactNode; delay?: number; className?: string }) {
+function Reveal({
+  children,
+  delay = 0,
+  className,
+}: {
+  children: ReactNode;
+  delay?: number;
+  className?: string;
+}) {
   const root = useContext(RootCtx);
   const reduced = useReducedMotion();
   return (
@@ -53,31 +160,108 @@ function Reveal({ children, delay = 0, className }: { children: ReactNode; delay
       initial={{ opacity: 0, y: reduced ? 0 : 24 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ root: root ?? undefined, once: true, margin: '0px 0px -8% 0px' }}
-      transition={{ duration: 0.6, delay, ease: EASE }}
+      transition={{ duration: 0.8, delay, ease: EASE }}
     >
       {children}
     </motion.div>
   );
 }
 
-function SectionLabel({ n, children }: { n: string; children: ReactNode }) {
+/** Image block: a curtain slides down to reveal it, with a gentle settle-zoom. */
+function ClipReveal({
+  children,
+  className = '',
+  delay = 0,
+}: {
+  children: ReactNode;
+  className?: string;
+  delay?: number;
+}) {
+  const root = useContext(RootCtx);
+  const reduced = useReducedMotion();
+  const viewport = {
+    root: root ?? undefined,
+    once: true,
+    margin: '0px 0px -10% 0px',
+  };
+
   return (
-    <div className="mb-6 flex items-center gap-4">
-      <span className="font-mono text-[11px] uppercase tracking-[0.25em] text-accent">{n}</span>
-      <span className="h-px w-8 bg-accent/40" />
-      <h2 className="font-mono text-[11px] uppercase tracking-[0.25em] text-muted">{children}</h2>
-    </div>
+    <motion.div
+      className={`relative overflow-hidden bg-fg/5 ${className}`}
+      initial={{ clipPath: reduced ? 'inset(0 0 0% 0)' : 'inset(0 0 100% 0)' }}
+      whileInView={{ clipPath: 'inset(0 0 0% 0)' }}
+      viewport={viewport}
+      transition={{ duration: 1.1, delay, ease: CURTAIN_EASE }}
+    >
+      <motion.div
+        className="absolute inset-0"
+        initial={{ scale: reduced ? 1 : 1.12 }}
+        whileInView={{ scale: 1 }}
+        viewport={viewport}
+        transition={{ duration: 1.6, delay, ease: EASE }}
+      >
+        {children}
+      </motion.div>
+    </motion.div>
   );
 }
 
-const btnPrimary =
-  'hover-target group inline-flex items-center justify-center gap-2.5 rounded-full bg-accent px-6 py-3.5 font-mono text-xs font-bold uppercase tracking-widest text-bg transition-all duration-300 hover:bg-white hover:shadow-[0_0_40px_-8px_var(--phosphor)]';
-const btnGhost =
-  'hover-target group inline-flex items-center justify-center gap-2.5 rounded-full border border-border px-6 py-3.5 font-mono text-xs uppercase tracking-widest text-fg transition-all duration-300 hover:border-accent/60 hover:bg-[var(--phosphorA)] hover:text-accent';
-const iconBtn =
-  'hover-target flex h-10 w-10 items-center justify-center rounded-full border border-border text-fg transition-all duration-300 hover:border-accent hover:bg-accent hover:text-bg disabled:pointer-events-none disabled:opacity-30';
+function CountUp({ value, suffix = '' }: { value: number; suffix?: string }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const root = useContext(RootCtx);
+  const reduced = useReducedMotion();
+  const inView = useInView(ref, {
+    root: root ?? undefined,
+    once: true,
+    margin: '0px 0px -10% 0px',
+  });
+  const [n, setN] = useState(reduced ? value : 0);
 
-/* ───────── component ───────── */
+  useEffect(() => {
+    if (!inView) return;
+    if (reduced) {
+      setN(value);
+      return;
+    }
+    const controls = animate(0, value, {
+      duration: 1.6,
+      ease: EASE,
+      onUpdate: (v) => setN(Math.round(v)),
+    });
+    return () => controls.stop();
+  }, [inView, value, reduced]);
+
+  return (
+    <span ref={ref} className="tabular-nums">
+      {n}
+      {suffix}
+    </span>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Section primitives                                                        */
+/* -------------------------------------------------------------------------- */
+
+function Section({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <Reveal>
+      <section>
+        <h2 className="mb-4 font-display text-2xl font-medium tracking-tight sm:text-3xl">
+          {title}
+        </h2>
+        {children}
+      </section>
+    </Reveal>
+  );
+}
+
+const bodyText = 'text-[15px] leading-7 text-fg/65 sm:text-base sm:leading-7';
+
+/* -------------------------------------------------------------------------- */
+/*  Component                                                                 */
+/* -------------------------------------------------------------------------- */
+
 interface Props {
   project: Project;
   index: number;
@@ -86,31 +270,53 @@ interface Props {
   next: Project | null;
   onClose: () => void;
   onNavigate: (id: number) => void;
+  /** Optional: render your site CTA / footer at the end of the page. */
+  footer?: ReactNode;
 }
 
-export default function ProjectDetail({ project, index, total, prev, next, onClose, onNavigate }: Props) {
+export default function ProjectDetail({
+  project,
+  index,
+  total,
+  prev,
+  next,
+  onClose,
+  onNavigate,
+  footer,
+}: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
+  const heroRef = useRef<HTMLDivElement>(null);
   const reduced = useReducedMotion();
   const [stuck, setStuck] = useState(false);
 
-  const { scrollY, scrollYProgress } = useScroll({ container: scrollRef });
-  const progress = useSpring(scrollYProgress, { stiffness: 220, damping: 32, restDelta: 0.001 });
-  useMotionValueEvent(scrollY, 'change', (v) => setStuck(v > 460));
+  useSmoothScroll(scrollRef, !reduced);
 
-  // back to top whenever we switch project
+  const { scrollY, scrollYProgress } = useScroll({ container: scrollRef });
+  const progress = useSpring(scrollYProgress, {
+    stiffness: 180,
+    damping: 28,
+    restDelta: 0.001,
+  });
+  useMotionValueEvent(scrollY, 'change', (v) => setStuck(v > 280));
+
+  const { scrollYProgress: heroProgress } = useScroll({
+    container: scrollRef,
+    target: heroRef,
+    offset: ['start start', 'end start'],
+  });
+  const heroY = useTransform(heroProgress, [0, 1], ['0%', '10%']);
+
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0 });
   }, [project.id]);
 
-  // focus the dialog on open, restore focus on close
   useEffect(() => {
-    const prevFocus = document.activeElement as HTMLElement | null;
+    const prevEl = document.activeElement as HTMLElement | null;
     closeRef.current?.focus({ preventScroll: true });
-    return () => prevFocus?.focus?.({ preventScroll: true });
+    return () => prevEl?.focus?.({ preventScroll: true });
   }, []);
 
-  // keyboard: Esc closes, ← → switch project
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -121,341 +327,484 @@ export default function ProjectDetail({ project, index, total, prev, next, onClo
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose, onNavigate, next, prev]);
 
+  const extra = project as Project & Extra;
   const stack = groupStack(project.tags);
-  const host = hostOf(project.link);
 
-  const details: [string, string][] = [
-    ['Year', project.year],
-    ['Role', project.role],
-    ['Type', project.type],
-  ];
+  const meta = (
+    [
+      ['Client', extra.client],
+      ['Category', project.category],
+      ['Timeline', extra.timeline ?? project.year],
+      ['Role', project.role],
+      ['Type', project.type],
+      ['Status', project.status],
+    ] as [string, string | number | undefined][]
+  ).filter(([, v]) => v !== undefined && v !== '');
+
+  // Related: the two projects that follow this one (wraps around).
+  const at = projects.findIndex((p) => p.id === project.id);
+  const related = projects
+    .filter((p) => p.id !== project.id)
+    .map((p, i, arr) => arr[(i + Math.max(at, 0)) % arr.length])
+    .slice(0, 2);
+
+  const hasResults = !!extra.results?.length;
+  const hasGallery = !!extra.gallery?.length;
 
   return (
     <motion.div
       role="dialog"
       aria-modal="true"
-      aria-label={`${project.title} project details`}
-      initial={{ opacity: 0, scale: reduced ? 1 : 0.985 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: reduced ? 1 : 0.99 }}
+      aria-label={`${project.title} case study`}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
       transition={{ duration: 0.35, ease: EASE }}
-      className="fixed inset-0 z-[90] bg-bg"
+      className="fixed inset-0 z-[90] bg-bg text-fg"
     >
-      {/* reading progress */}
+      {/* Reading progress */}
       <motion.div
         aria-hidden
         style={{ scaleX: progress }}
-        className="absolute inset-x-0 top-0 z-40 h-[2px] origin-left bg-accent shadow-[0_0_12px_var(--phosphor)]"
+        className="absolute inset-x-0 top-0 z-40 h-[2px] origin-left bg-accent"
       />
 
-      {/* the whole overlay scrolls as ONE container — wheel works anywhere */}
-      <div ref={scrollRef} data-lenis-prevent="true" className="absolute inset-0 overflow-y-auto overscroll-contain scroll-smooth">
+      <div
+        ref={scrollRef}
+        data-lenis-prevent="true"
+        className="absolute inset-0 overflow-y-auto overscroll-contain"
+      >
         <RootCtx.Provider value={scrollRef}>
-          {/* ── sticky top bar ── */}
-          <header className="sticky top-0 z-30 border-b border-border/60 bg-bg/75 backdrop-blur-xl">
-            <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-8">
-              <button type="button" onClick={onClose} className="hover-target group flex items-center gap-2 font-mono text-[11px] uppercase tracking-widest text-muted transition-colors hover:text-accent">
-                <ArrowLeft size={16} className="transition-transform duration-300 group-hover:-translate-x-1" />
+          {/* ------------------------------ Header ------------------------------ */}
+          <header className="sticky top-0 z-30 border-b border-fg/10 bg-bg/75 backdrop-blur-xl">
+            <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-5 sm:px-8">
+              <button
+                type="button"
+                onClick={onClose}
+                className="hover-target group flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-muted transition hover:text-fg"
+              >
+                <ArrowLeft
+                  size={14}
+                  className="transition group-hover:-translate-x-0.5"
+                />
                 <span className="hidden sm:inline">All works</span>
               </button>
 
               <div
-                className={`pointer-events-none absolute left-1/2 hidden -translate-x-1/2 items-center gap-3 transition-all duration-300 md:flex ${
-                  stuck ? 'translate-y-0 opacity-100' : '-translate-y-2 opacity-0'
+                aria-hidden={!stuck}
+                className={`pointer-events-none absolute left-1/2 hidden -translate-x-1/2 items-center gap-3 transition duration-300 md:flex ${
+                  stuck ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'
                 }`}
               >
-                <span className="font-mono text-[10px] uppercase tracking-widest text-accent">{pad(index + 1)}</span>
-                <span className="font-display text-sm font-bold uppercase tracking-tight">{project.title}</span>
+                <span className="text-xs tabular-nums text-muted">
+                  {pad(index + 1)} / {pad(total)}
+                </span>
+                <span className="font-display text-sm font-semibold tracking-tight">
+                  {project.title}
+                </span>
               </div>
 
-              <div className="flex items-center gap-2">
-                <a
-                  href={project.link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={`hover-target hidden items-center gap-2 rounded-full bg-accent px-4 py-2 font-mono text-[10px] font-bold uppercase tracking-widest text-bg transition-all duration-300 hover:bg-white sm:flex ${
-                    stuck ? 'opacity-100' : 'pointer-events-none opacity-0'
-                  }`}
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  disabled={!prev}
+                  onClick={() => prev && onNavigate(prev.id)}
+                  className="hover-target flex h-9 w-9 items-center justify-center rounded-full text-fg/60 transition hover:bg-fg/5 hover:text-fg disabled:opacity-25"
+                  aria-label="Previous project"
                 >
-                  Live site <ExternalLink size={13} />
-                </a>
-                <button type="button" aria-label="Previous project" disabled={!prev} onClick={() => prev && onNavigate(prev.id)} className={iconBtn}>
-                  <ArrowLeft size={16} />
+                  <ArrowLeft size={15} />
                 </button>
-                <button type="button" aria-label="Next project" disabled={!next} onClick={() => next && onNavigate(next.id)} className={iconBtn}>
-                  <ArrowRight size={16} />
+                <button
+                  type="button"
+                  disabled={!next}
+                  onClick={() => next && onNavigate(next.id)}
+                  className="hover-target flex h-9 w-9 items-center justify-center rounded-full text-fg/60 transition hover:bg-fg/5 hover:text-fg disabled:opacity-25"
+                  aria-label="Next project"
+                >
+                  <ArrowRight size={15} />
                 </button>
-                <button ref={closeRef} type="button" aria-label="Close project" onClick={onClose} className={`${iconBtn} group`}>
-                  <X size={16} className="transition-transform duration-300 group-hover:rotate-90" />
+                <button
+                  ref={closeRef}
+                  type="button"
+                  onClick={onClose}
+                  className="hover-target group ml-1 flex h-9 w-9 items-center justify-center rounded-full bg-fg/5 text-fg transition hover:bg-fg hover:text-bg"
+                  aria-label="Close"
+                >
+                  <X size={15} className="transition group-hover:rotate-90" />
                 </button>
               </div>
             </div>
           </header>
 
-          <motion.div
+          <motion.main
             key={project.id}
-            initial={{ opacity: 0, y: reduced ? 0 : 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease: EASE }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4, ease: EASE }}
           >
-            {/* ── hero ── */}
-            <section className="relative overflow-hidden">
-              <div
-                aria-hidden
-                className="pointer-events-none absolute inset-0 opacity-[0.35]"
-                style={{
-                  backgroundImage:
-                    'linear-gradient(var(--dim) 1px, transparent 1px), linear-gradient(90deg, var(--dim) 1px, transparent 1px)',
-                  backgroundSize: '64px 64px',
-                  maskImage: 'radial-gradient(ellipse 70% 60% at 50% 0%, black, transparent)',
-                  WebkitMaskImage: 'radial-gradient(ellipse 70% 60% at 50% 0%, black, transparent)',
-                }}
-              />
-              <div aria-hidden className="pointer-events-none absolute -top-40 left-1/2 h-[480px] w-[780px] -translate-x-1/2 rounded-full bg-accent/10 blur-[120px]" />
-
-              <div className="relative mx-auto max-w-7xl px-4 pb-14 pt-14 sm:px-8 sm:pt-20">
-                <div className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-2 font-mono text-[11px] uppercase tracking-[0.25em]">
-                  <span className="text-accent">
-                    {pad(index + 1)} / {pad(total)}
-                  </span>
-                  <span className="h-px w-8 bg-border" />
-                  <span className="text-muted">{project.category}</span>
-                </div>
-
-                <h1 className="font-display text-[clamp(3.25rem,11vw,9.5rem)] font-bold uppercase leading-[0.88] tracking-tighter text-fg">
+            {/* ------------------------------- Intro ------------------------------ */}
+            <div className="mx-auto max-w-7xl px-5 pt-8 sm:px-8 sm:pt-12">
+              <nav
+                aria-label="Breadcrumb"
+                className="mb-8 flex items-center gap-2 text-xs text-muted sm:mb-12"
+              >
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="hover-target transition hover:text-fg"
+                >
+                  Case Studies
+                </button>
+                <span aria-hidden>/</span>
+                <span className="truncate rounded-sm bg-fg/5 px-2 py-1 text-fg">
                   {project.title}
-                </h1>
+                </span>
+              </nav>
 
-                <p className="mt-6 max-w-2xl text-xl leading-snug text-fg/70 sm:text-2xl">{project.tagline}</p>
+              <div className="grid gap-8 md:grid-cols-12 md:items-end">
+                <div className="md:col-span-8">
+                  <h1 className="font-display text-[clamp(2.25rem,6vw,4.75rem)] font-medium leading-[1.02] tracking-tighter">
+                    <span className="block overflow-hidden pb-1">
+                      <motion.span
+                        className="block"
+                        initial={{ y: reduced ? 0 : '105%' }}
+                        animate={{ y: 0 }}
+                        transition={{ duration: 1, ease: EASE, delay: 0.1 }}
+                      >
+                        {project.title}
+                      </motion.span>
+                    </span>
+                  </h1>
 
-                <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-                  <a href={project.link} target="_blank" rel="noopener noreferrer" className={btnPrimary}>
-                    View live site <ArrowUpRight size={16} className="transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-                  </a>
-                  <a href={project.github} target="_blank" rel="noopener noreferrer" className={btnGhost}>
-                    <Github size={16} /> Source code
-                  </a>
+                  <motion.p
+                    className="mt-5 max-w-xl text-base leading-7 text-fg/60 sm:text-lg"
+                    initial={{ opacity: 0, y: reduced ? 0 : 14 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.8, ease: EASE, delay: 0.3 }}
+                  >
+                    {project.tagline}
+                  </motion.p>
                 </div>
 
-                {/* meta strip */}
-                <dl className="mt-14 grid grid-cols-2 border-y border-border sm:grid-cols-4">
-                  {[...details, ['Status', project.status] as [string, string]].map(([k, v], i) => (
-                    <div key={k} className={`py-5 ${i % 2 === 1 ? 'pl-5' : ''} ${i > 0 ? 'sm:border-l sm:border-border sm:pl-6' : ''} ${i >= 2 ? 'border-t border-border sm:border-t-0' : ''}`}>
-                      <dt className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted">{k}</dt>
-                      <dd className="mt-1.5 flex items-center gap-2 text-sm font-medium text-fg sm:text-base">
-                        {k === 'Status' && (
-                          <span className="relative flex h-2 w-2">
-                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-60" />
-                            <span className="relative inline-flex h-2 w-2 rounded-full bg-accent" />
-                          </span>
-                        )}
-                        {v}
-                      </dd>
-                    </div>
-                  ))}
-                </dl>
+                <motion.div
+                  className="flex flex-col gap-5 md:col-span-4 md:items-end"
+                  initial={{ opacity: 0, y: reduced ? 0 : 14 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.8, ease: EASE, delay: 0.4 }}
+                >
+                  <ul className="flex flex-wrap gap-2 md:justify-end">
+                    {project.tags.map((t) => (
+                      <li
+                        key={t}
+                        className="rounded-sm bg-fg/5 px-3 py-1.5 text-[11px] font-medium text-muted"
+                      >
+                        {tagLabel(t)}
+                      </li>
+                    ))}
+                  </ul>
 
-                {/* browser frame */}
-                <div className="mt-12 overflow-hidden rounded-2xl border border-border bg-surface shadow-[0_0_140px_-40px_rgba(0,255,136,0.35)]">
-                  <div className="flex items-center gap-3 border-b border-border bg-[var(--void3)] px-4 py-3">
-                    <div className="flex gap-1.5">
-                      <span className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]/80" />
-                      <span className="h-2.5 w-2.5 rounded-full bg-[#febc2e]/80" />
-                      <span className="h-2.5 w-2.5 rounded-full bg-[#28c840]/80" />
-                    </div>
+                  <div className="flex flex-wrap gap-2.5">
                     <a
                       href={project.link}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="hover-target mx-auto flex max-w-sm flex-1 items-center justify-center gap-2 truncate rounded-md border border-border bg-bg/60 px-3 py-1.5 font-mono text-[11px] text-muted transition-colors hover:text-accent"
+                      className="hover-target inline-flex items-center gap-2 rounded-full bg-fg px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.12em] text-bg transition hover:bg-accent"
                     >
-                      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
-                      <span className="truncate">{host}</span>
+                      Live site <ArrowUpRight size={14} />
                     </a>
-                    <span className="w-[42px]" aria-hidden />
+                    {project.github && (
+                      <a
+                        href={project.github}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover-target inline-flex items-center gap-2 rounded-full border border-fg/15 px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.12em] text-fg transition hover:border-fg"
+                      >
+                        <Github size={14} /> Code
+                      </a>
+                    )}
                   </div>
-                  <div className="relative aspect-[16/10] w-full">
-                    <Image
-                      src={project.image}
-                      alt={`${project.title} screenshot`}
-                      fill
-                      priority
-                      sizes="(min-width:1280px) 1216px, 100vw"
-                      className="object-cover object-top"
-                      referrerPolicy="no-referrer"
-                    />
-                  </div>
-                </div>
+                </motion.div>
               </div>
-            </section>
+            </div>
 
-            {/* ── body ── */}
-            <div className="mx-auto grid max-w-7xl gap-14 px-4 pb-24 pt-6 sm:px-8 lg:grid-cols-12 lg:gap-16">
-              <div className="space-y-20 lg:col-span-8">
-                <Reveal>
-                  <SectionLabel n="01">Overview</SectionLabel>
-                  <p className="text-2xl font-medium leading-snug text-fg/90 sm:text-3xl">{project.overview}</p>
-                </Reveal>
+            {/* -------------------------------- Hero ------------------------------ */}
+            <div className="mx-auto mt-10 max-w-7xl px-5 sm:mt-14 sm:px-8">
+              <motion.div
+                ref={heroRef}
+                className="relative aspect-[16/10] overflow-hidden bg-fg/5 sm:aspect-[2/1]"
+                initial={{
+                  clipPath: reduced ? 'inset(0 0 0% 0)' : 'inset(0 0 100% 0)',
+                }}
+                animate={{ clipPath: 'inset(0 0 0% 0)' }}
+                transition={{ duration: 1.2, ease: CURTAIN_EASE, delay: 0.15 }}
+              >
+                <motion.div
+                  className="absolute inset-0"
+                  style={{ y: reduced ? 0 : heroY, scale: reduced ? 1 : 1.1 }}
+                >
+                  <Image
+                    src={project.image}
+                    alt={`${project.title} preview`}
+                    fill
+                    priority
+                    sizes="(min-width:1280px) 1216px, 100vw"
+                    className="object-cover object-top"
+                  />
+                </motion.div>
+              </motion.div>
+            </div>
 
-                <Reveal>
-                  <SectionLabel n="02">The story</SectionLabel>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="rounded-2xl border border-border bg-surface p-6">
-                      <p className="mb-3 font-mono text-[10px] uppercase tracking-[0.25em] text-[var(--amber)]">Problem</p>
-                      <p className="leading-relaxed text-fg/75">{project.problem}</p>
-                    </div>
-                    <div className="rounded-2xl border border-accent/25 bg-[var(--phosphorA)] p-6">
-                      <p className="mb-3 font-mono text-[10px] uppercase tracking-[0.25em] text-accent">Solution</p>
-                      <p className="leading-relaxed text-fg/85">{project.solution}</p>
-                    </div>
-                  </div>
-                </Reveal>
-
-                <div>
+            {/* -------------------------------- Body ------------------------------ */}
+            <div className="mx-auto grid max-w-7xl gap-12 px-5 pb-24 pt-14 sm:px-8 sm:pt-20 lg:grid-cols-12 lg:gap-16">
+              {/* Meta sidebar */}
+              <aside className="lg:col-span-3">
+                <div className="lg:sticky lg:top-24">
                   <Reveal>
-                    <SectionLabel n="03">Key features</SectionLabel>
+                    <dl className="grid grid-cols-2 gap-x-6 gap-y-6 lg:grid-cols-1">
+                      {meta.map(([k, v]) => (
+                        <div key={k} className="border-t border-fg/10 pt-3">
+                          <dt className="mb-1 text-[11px] font-medium uppercase tracking-[0.14em] text-muted">
+                            {k}
+                          </dt>
+                          <dd className="text-sm font-medium">{v}</dd>
+                        </div>
+                      ))}
+                    </dl>
                   </Reveal>
-                  <div className="grid gap-4 sm:grid-cols-2">
+                </div>
+              </aside>
+
+              {/* Content */}
+              <div className="space-y-16 sm:space-y-20 lg:col-span-9">
+                <Section title="About The Project">
+                  <p className="text-lg leading-8 text-fg/80 sm:text-xl sm:leading-9">
+                    {project.overview}
+                  </p>
+                </Section>
+
+                {hasGallery && (
+                  <div className="grid grid-cols-2 gap-3 sm:gap-5">
+                    {extra.gallery!.map((src, i) => (
+                      <ClipReveal
+                        key={src}
+                        delay={(i % 2) * 0.08}
+                        className={
+                          i % 3 === 0
+                            ? 'col-span-2 aspect-[16/9]'
+                            : 'aspect-[4/5] sm:aspect-[4/3]'
+                        }
+                      >
+                        <Image
+                          src={src}
+                          alt={`${project.title} — screen ${i + 1}`}
+                          fill
+                          sizes="(min-width:1024px) 60vw, 100vw"
+                          className="object-cover object-top"
+                        />
+                      </ClipReveal>
+                    ))}
+                  </div>
+                )}
+
+                <div className="grid gap-12 md:grid-cols-2 md:gap-14">
+                  <Section title="The Problem">
+                    <p className={bodyText}>{project.problem}</p>
+                  </Section>
+                  <Section title="My Solution">
+                    <p className={bodyText}>{project.solution}</p>
+                  </Section>
+                </div>
+
+                {/* Features */}
+                <section>
+                  <Reveal>
+                    <h2 className="mb-8 font-display text-2xl font-medium tracking-tight sm:text-3xl">
+                      Key Features
+                    </h2>
+                  </Reveal>
+                  <div className="grid gap-x-12 gap-y-9 sm:grid-cols-2">
                     {project.features.map((f, i) => (
                       <Reveal key={f.title} delay={(i % 2) * 0.06}>
-                        <div className="group h-full rounded-2xl border border-border bg-surface p-6 transition-colors duration-300 hover:border-accent/40 hover:bg-[var(--dimmer)]">
-                          <div className="mb-4 flex items-center justify-between">
-                            <span className="font-mono text-[11px] tracking-widest text-muted">{pad(i + 1)}</span>
-                            <span className="flex h-7 w-7 items-center justify-center rounded-full border border-border text-accent transition-colors duration-300 group-hover:border-accent/50 group-hover:bg-accent/10">
-                              <Check size={14} />
-                            </span>
-                          </div>
-                          <h3 className="mb-2 font-display text-lg font-bold tracking-tight text-fg">{f.title}</h3>
-                          <p className="text-sm leading-relaxed text-fg/65">{f.desc}</p>
+                        <div className="border-t border-fg/10 pt-5">
+                          <span className="mb-3 block text-xs tabular-nums text-accent">
+                            {pad(i + 1)}
+                          </span>
+                          <h3 className="mb-1.5 font-display text-lg font-medium tracking-tight">
+                            {f.title}
+                          </h3>
+                          <p className="text-sm leading-6 text-fg/55">{f.desc}</p>
                         </div>
                       </Reveal>
                     ))}
                   </div>
-                </div>
+                </section>
 
+                {/* Challenges */}
                 {project.challenges && project.challenges.length > 0 && (
-                  <div>
+                  <section>
                     <Reveal>
-                      <SectionLabel n="04">Challenges &amp; learnings</SectionLabel>
+                      <h2 className="mb-8 font-display text-2xl font-medium tracking-tight sm:text-3xl">
+                        Challenges &amp; Approach
+                      </h2>
                     </Reveal>
-                    <div className="divide-y divide-border rounded-2xl border border-border bg-surface">
+                    <div>
                       {project.challenges.map((c) => (
                         <Reveal key={c.challenge}>
-                          <div className="grid gap-4 p-6 md:grid-cols-2 md:gap-8">
+                          <div className="grid gap-4 border-t border-fg/10 py-6 md:grid-cols-2 md:gap-10">
                             <div>
-                              <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.25em] text-[var(--amber)]">Challenge</p>
-                              <p className="leading-relaxed text-fg/85">{c.challenge}</p>
+                              <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.14em] text-muted">
+                                Challenge
+                              </p>
+                              <p className="text-[15px] leading-7 text-fg/80">
+                                {c.challenge}
+                              </p>
                             </div>
                             <div>
-                              <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.25em] text-accent">How I solved it</p>
-                              <p className="leading-relaxed text-fg/65">{c.solution}</p>
+                              <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.14em] text-accent">
+                                Approach
+                              </p>
+                              <p className="text-[15px] leading-7 text-fg/60">
+                                {c.solution}
+                              </p>
                             </div>
                           </div>
                         </Reveal>
                       ))}
                     </div>
-                  </div>
+                  </section>
                 )}
-              </div>
 
-              {/* ── sticky sidebar ── */}
-              <aside className="lg:col-span-4">
-                <div className="space-y-4 lg:sticky lg:top-24">
-                  <Reveal>
-                    <div className="rounded-2xl border border-border bg-surface p-6">
-                      <p className="mb-4 font-mono text-[10px] uppercase tracking-[0.25em] text-muted">Links</p>
-                      <div className="flex flex-col gap-3">
-                        <a href={project.link} target="_blank" rel="noopener noreferrer" className={btnPrimary}>
-                          Live site <ExternalLink size={15} />
-                        </a>
-                        <a href={project.github} target="_blank" rel="noopener noreferrer" className={btnGhost}>
-                          <Github size={15} /> GitHub repo
-                        </a>
-                      </div>
-                      <p className="mt-4 truncate font-mono text-[11px] text-muted">{host}</p>
-                    </div>
-                  </Reveal>
-
-                  <Reveal delay={0.05}>
-                    <div className="rounded-2xl border border-border bg-surface p-6">
-                      <p className="mb-4 font-mono text-[10px] uppercase tracking-[0.25em] text-muted">Details</p>
-                      <ul className="space-y-3 font-mono text-xs">
-                        {[...details, ['Status', project.status] as [string, string]].map(([k, v]) => (
-                          <li key={k} className="flex justify-between gap-4 border-b border-border/60 pb-3 last:border-0 last:pb-0">
-                            <span className="text-muted">{k}</span>
-                            <span className="text-right text-fg">{v}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </Reveal>
-
-                  <Reveal delay={0.1}>
-                    <div className="rounded-2xl border border-border bg-surface p-6">
-                      <p className="mb-4 font-mono text-[10px] uppercase tracking-[0.25em] text-muted">Tech stack</p>
-                      <div className="space-y-4">
-                        {stack.map(({ group, items }) => (
-                          <div key={group}>
-                            <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-text3 text-[var(--text3)]">{group}</p>
-                            <div className="flex flex-wrap gap-2">
-                              {items.map((t) => (
-                                <span key={t} className="rounded-full border border-border bg-bg px-3 py-1 font-mono text-[11px] text-fg/85 transition-colors hover:border-accent/50 hover:text-accent">
-                                  {t}
-                                </span>
-                              ))}
-                            </div>
+                {/* Results */}
+                {hasResults && (
+                  <section>
+                    <Reveal>
+                      <h2 className="mb-8 font-display text-2xl font-medium tracking-tight sm:text-3xl">
+                        Results &amp; Outcomes
+                      </h2>
+                    </Reveal>
+                    <div className="grid gap-x-8 gap-y-10 sm:grid-cols-3">
+                      {extra.results!.map((r, i) => (
+                        <Reveal key={r.label} delay={i * 0.08}>
+                          <div className="border-t border-fg/10 pt-5">
+                            <p className="font-display text-5xl font-medium tracking-tighter text-accent sm:text-6xl">
+                              <CountUp value={r.value} suffix={r.suffix ?? '%'} />
+                            </p>
+                            <p className="mt-3 text-sm font-medium">{r.label}</p>
+                            {r.desc && (
+                              <p className="mt-1.5 text-sm leading-6 text-fg/55">
+                                {r.desc}
+                              </p>
+                            )}
                           </div>
-                        ))}
-                      </div>
+                        </Reveal>
+                      ))}
                     </div>
+                  </section>
+                )}
+
+                {/* Tech stack */}
+                <section>
+                  <Reveal>
+                    <h2 className="mb-8 font-display text-2xl font-medium tracking-tight sm:text-3xl">
+                      Tech Stack
+                    </h2>
                   </Reveal>
-                </div>
-              </aside>
+                  <div>
+                    {stack.map(({ group, items }) => (
+                      <Reveal key={group}>
+                        <div className="grid gap-3 border-t border-fg/10 py-5 sm:grid-cols-[10rem_1fr]">
+                          <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted">
+                            {group}
+                          </p>
+                          <ul className="flex flex-wrap gap-2">
+                            {items.map((t) => (
+                              <li
+                                key={t}
+                                className="rounded-sm bg-fg/5 px-3 py-1.5 text-xs font-medium"
+                              >
+                                {t}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </Reveal>
+                    ))}
+                  </div>
+                </section>
+              </div>
             </div>
 
-            {/* ── next project ── */}
-            {next && (
-              <button
-                type="button"
-                onClick={() => onNavigate(next.id)}
-                className="hover-target group relative block w-full overflow-hidden border-t border-border text-left"
-              >
-                <Image
-                  src={next.image}
-                  alt=""
-                  fill
-                  sizes="100vw"
-                  className="object-cover object-top opacity-[0.12] transition-all duration-700 group-hover:scale-[1.03] group-hover:opacity-25"
-                  referrerPolicy="no-referrer"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-bg via-bg/70 to-bg/40" />
-                <div className="relative mx-auto flex max-w-7xl items-end justify-between gap-6 px-4 py-20 sm:px-8 sm:py-28">
-                  <div className="min-w-0">
-                    <p className="mb-4 font-mono text-[11px] uppercase tracking-[0.25em] text-accent">
-                      Next project — {pad(index + 2)} / {pad(total)}
-                    </p>
-                    <p className="truncate font-display text-[clamp(2.5rem,9vw,7rem)] font-bold uppercase leading-none tracking-tighter text-fg transition-colors duration-300 group-hover:text-accent">
-                      {next.title}
-                    </p>
-                    <p className="mt-3 font-mono text-xs uppercase tracking-widest text-muted">{next.category}</p>
+            {/* ---------------------------- Related projects ---------------------------- */}
+            {related.length > 0 && (
+              <section className="border-t border-fg/10">
+                <div className="mx-auto max-w-7xl px-5 py-16 sm:px-8 sm:py-24">
+                  <Reveal>
+                    <div className="mb-10 flex items-end justify-between gap-6">
+                      <h2 className="font-display text-3xl font-medium tracking-tight sm:text-5xl">
+                        Related Projects
+                      </h2>
+                      {next && (
+                        <button
+                          type="button"
+                          onClick={() => onNavigate(next.id)}
+                          className="hover-target group hidden items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-muted transition hover:text-fg sm:flex"
+                        >
+                          Next project
+                          <ArrowRight
+                            size={14}
+                            className="transition group-hover:translate-x-0.5"
+                          />
+                        </button>
+                      )}
+                    </div>
+                  </Reveal>
+
+                  <div className="grid gap-x-8 gap-y-12 sm:grid-cols-2 lg:gap-x-12">
+                    {related.map((p, i) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => onNavigate(p.id)}
+                        aria-label={`Open ${p.title} case study`}
+                        className="hover-target group block text-left"
+                      >
+                        <ClipReveal className="aspect-[16/10]" delay={i * 0.1}>
+                          <Image
+                            src={p.image}
+                            alt={`${p.title} preview`}
+                            fill
+                            sizes="(min-width:640px) 50vw, 100vw"
+                            className="object-cover object-top transition-transform duration-700 ease-out group-hover:scale-[1.03]"
+                          />
+                        </ClipReveal>
+                        <div className="mt-4 flex flex-col gap-3">
+                          <h3 className="max-w-[22ch] font-display text-2xl font-medium leading-tight tracking-tight transition group-hover:text-accent sm:text-3xl">
+                            {p.title}
+                          </h3>
+                          <ul className="flex flex-wrap gap-2">
+                            {(
+                              (p as { tags?: string[] }).tags?.length
+                                ? (p as { tags: string[] }).tags
+                                : [p.category]
+                            ).map((t) => (
+                              <li
+                                key={t}
+                                className="rounded-sm bg-fg/5 px-3 py-1.5 text-[11px] font-medium text-muted"
+                              >
+                                {tagLabel(t)}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </button>
+                    ))}
                   </div>
-                  <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-border transition-all duration-300 group-hover:border-accent group-hover:bg-accent group-hover:text-bg sm:h-20 sm:w-20">
-                    <ArrowRight size={26} className="transition-transform duration-300 group-hover:translate-x-1" />
-                  </span>
                 </div>
-              </button>
+              </section>
             )}
 
-            {!next && (
-              <div className="border-t border-border">
-                <div className="mx-auto flex max-w-7xl justify-center px-4 py-20 sm:px-8">
-                  <button type="button" onClick={onClose} className={btnGhost}>
-                    <ArrowLeft size={16} /> Back to all works
-                  </button>
-                </div>
-              </div>
-            )}
-          </motion.div>
+            {footer}
+          </motion.main>
         </RootCtx.Provider>
       </div>
     </motion.div>

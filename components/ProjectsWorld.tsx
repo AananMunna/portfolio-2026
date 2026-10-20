@@ -871,73 +871,62 @@ export default function ProjectsWorld({ projects, onOpen }: Props) {
         </motion.div>
 
         {/* ─── project info + actions ─── */}
-        <div className="absolute inset-x-0 bottom-0 z-10 px-5 pb-8 sm:px-8 sm:pb-10 lg:px-12">
-          <div className="mx-auto max-w-3xl">
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.div
-                key={active}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -14 }}
-                transition={{ duration: 0.55, ease: EASE }}
-                className="flex flex-col gap-5"
-              >
-                {/* text */}
-                <div className="min-w-0">
-                  <p className="mb-1.5 font-mono text-[10px] uppercase tracking-[0.22em] text-muted/80">
-                    {current.category} · {current.year}
-                  </p>
-                  <h2 className="font-display text-[clamp(1.85rem,5.5vw,3.25rem)] font-bold leading-[1.05] tracking-tight text-fg">
-                    {current.title}
-                  </h2>
-                  <p className="mt-2 max-w-lg text-[13px] leading-relaxed text-muted/90 sm:text-sm">
-                    {current.tagline}
-                  </p>
-                </div>
+       {/* Bottom info — lifted above the mobile dock */}
+<div className="absolute inset-x-0 bottom-28 z-10 px-5 sm:bottom-32 sm:px-8 lg:bottom-10 lg:px-12">
+  <div className="mx-auto max-w-2xl">
+    <AnimatePresence mode="wait" initial={false}>
+      <motion.div
+        key={active}
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -10 }}
+        transition={{ duration: 0.5, ease: EASE }}
+        className="text-center sm:text-left"
+      >
+        <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.25em] text-muted/70">
+          {current.category} · {current.year}
+        </p>
+        <h2 className="font-display text-[clamp(1.75rem,5vw,2.75rem)] font-bold leading-[1.1] tracking-tight text-fg">
+          {current.title}
+        </h2>
+        <p className="mx-auto mt-2.5 max-w-md text-[14px] leading-relaxed text-muted/85 sm:mx-0">
+          {current.tagline}
+        </p>
 
-                {/* action icons — recruiter-friendly */}
-                <div className="flex items-center gap-2.5">
-                  {/* Live */}
-                  <a
-                    href={current.link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={`Open live demo of ${current.title}`}
-                    className="group flex h-10 items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 font-mono text-[11px] uppercase tracking-[0.16em] text-fg/85 backdrop-blur-sm transition-all duration-300 hover:border-accent/50 hover:bg-accent/10 hover:text-accent active:scale-[0.97]"
-                  >
-                    <ExternalLink size={13} strokeWidth={2} className="opacity-80 transition-opacity group-hover:opacity-100" />
-                    <span>Live</span>
-                  </a>
-
-                  {/* GitHub */}
-                  {current.github && (
-                    <a
-                      href={current.github}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-label={`View GitHub repository of ${current.title}`}
-                      className="group flex h-10 items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 font-mono text-[11px] uppercase tracking-[0.16em] text-fg/85 backdrop-blur-sm transition-all duration-300 hover:border-accent/50 hover:bg-accent/10 hover:text-accent active:scale-[0.97]"
-                    >
-                      <Github size={13} strokeWidth={2} className="opacity-80 transition-opacity group-hover:opacity-100" />
-                      <span>Code</span>
-                    </a>
-                  )}
-
-                  {/* Details */}
-                  <button
-                    type="button"
-                    onClick={() => onOpen(current.id)}
-                    aria-label={`View details of ${current.title}`}
-                    className="group flex h-10 items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 font-mono text-[11px] uppercase tracking-[0.16em] text-fg/85 backdrop-blur-sm transition-all duration-300 hover:border-accent/50 hover:bg-accent/10 hover:text-accent active:scale-[0.97]"
-                  >
-                    <ArrowUpRight size={13} strokeWidth={2} className="opacity-80 transition-all group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:opacity-100" />
-                    <span>Details</span>
-                  </button>
-                </div>
-              </motion.div>
-            </AnimatePresence>
-          </div>
+        <div className="mt-6 flex items-center justify-center gap-2 sm:justify-start">
+          <a
+            href={current.link}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex h-9 items-center gap-2 rounded-full bg-white/10 px-4 font-mono text-[11px] uppercase tracking-wider text-fg/90 backdrop-blur-md transition hover:bg-accent hover:text-bg"
+          >
+            <ExternalLink size={12} />
+            Live
+          </a>
+          {current.github && (
+            <a
+              href={current.github}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex h-9 items-center gap-2 rounded-full bg-white/10 px-4 font-mono text-[11px] uppercase tracking-wider text-fg/90 backdrop-blur-md transition hover:bg-accent hover:text-bg"
+            >
+              <Github size={12} />
+              Code
+            </a>
+          )}
+          <button
+            type="button"
+            onClick={() => onOpen(current.id)}
+            className="flex h-9 items-center gap-2 rounded-full bg-white/10 px-4 font-mono text-[11px] uppercase tracking-wider text-fg/90 backdrop-blur-md transition hover:bg-accent hover:text-bg"
+          >
+            <ArrowUpRight size={12} />
+            Case study
+          </button>
         </div>
+      </motion.div>
+    </AnimatePresence>
+  </div>
+</div>
       </div>
 
       {/* screen-reader only */}
