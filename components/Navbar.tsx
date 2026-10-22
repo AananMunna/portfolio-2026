@@ -1,11 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import {
-  motion,
-  AnimatePresence,
-  useMotionValue,
-  useSpring,
-} from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import {
   Home,
   User,
@@ -38,15 +33,6 @@ const sections = [
     accent: "bg-emerald-400",
   },
   {
-    id: "skills",
-    title: "Capabilities",
-    short: "Skills",
-    icon: Code2,
-    target: "#skills",
-    color: "from-pink-500/25 to-rose-500/25",
-    accent: "bg-pink-400",
-  },
-  {
     id: "experience",
     title: "Timeline",
     short: "Work",
@@ -63,6 +49,15 @@ const sections = [
     target: "#work",
     color: "from-amber-500/25 to-yellow-500/25",
     accent: "bg-amber-400",
+  },
+  {
+    id: "skills",
+    title: "Capabilities",
+    short: "Skills",
+    icon: Code2,
+    target: "#skills",
+    color: "from-pink-500/25 to-rose-500/25",
+    accent: "bg-pink-400",
   },
   {
     id: "contact",
@@ -84,32 +79,50 @@ export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [fromDesktop, setFromDesktop] = useState(false);
   const [activeSection, setActiveSection] = useState("home");
-  const [isHoveringDock, setIsHoveringDock] = useState(false);
   const [hideDock, setHideDock] = useState(false);
+  const [hoveredDockItem, setHoveredDockItem] = useState<string | null>(null);
 
-// Hide bottom dock while Projects section is in view
-useEffect(() => {
-  const work = document.getElementById('work');
-  if (!work) return;
+  // Scroll direction control
+  const [showDock, setShowDock] = useState(false);
+  const lastScrollY = useRef(0);
 
-  const observer = new IntersectionObserver(
-    ([entry]) => {
-      // Hide dock when a good portion of the projects section is visible
-      setHideDock(entry.isIntersecting && entry.intersectionRatio > 0.15);
-    },
-    {
-      threshold: [0, 0.15, 0.3, 0.5],
-      rootMargin: '-10% 0px -10% 0px',
-    }
-  );
-
-  observer.observe(work);
-  return () => observer.disconnect();
-}, []);
-
-  // Scroll detection
+  // Hide bottom dock while Projects section is in view
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 80);
+    const work = document.getElementById("work");
+    if (!work) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setHideDock(entry.isIntersecting && entry.intersectionRatio > 0.15);
+      },
+      {
+        threshold: [0, 0.15, 0.3, 0.5],
+        rootMargin: "-10% 0px -10% 0px",
+      },
+    );
+
+    observer.observe(work);
+    return () => observer.disconnect();
+  }, []);
+
+  // Scroll detection with direction
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+
+      setScrolled(currentScrollY > 80);
+
+      if (currentScrollY < 100) {
+        setShowDock(false);
+      } else if (currentScrollY < lastScrollY.current) {
+        setShowDock(true);
+      } else if (currentScrollY > lastScrollY.current + 8) {
+        setShowDock(false);
+      }
+
+      lastScrollY.current = currentScrollY;
+    };
+
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
@@ -223,7 +236,6 @@ useEffect(() => {
         className="fixed top-0 left-0 w-full z-50 pointer-events-none mix-blend-difference"
       >
         <div className="flex items-center justify-between px-5 sm:px-8 lg:px-10 py-5 lg:py-5">
-          {/* Logo */}
           <button
             onClick={() => scrollTo("body")}
             className="pointer-events-auto font-display font-semibold tracking-tight text-white text-[17px] sm:text-lg hover-target"
@@ -231,7 +243,6 @@ useEffect(() => {
             AananMunna
           </button>
 
-          {/* Desktop links */}
           <div className="hidden lg:flex items-center gap-0.5 pointer-events-auto">
             {sections.map((s) => (
               <button
@@ -254,7 +265,6 @@ useEffect(() => {
             </a>
           </div>
 
-          {/* Mobile hamburger (top only) */}
           <button
             onClick={() => {
               setFromDesktop(false);
@@ -268,105 +278,142 @@ useEffect(() => {
         </div>
       </motion.nav>
 
-      {/* ===================== PREMIUM FLOATING DOCK ===================== */}
+      {/* ===================== CLEAN PREMIUM FLOATING DOCK ===================== */}
       <AnimatePresence>
-        {scrolled && (
+        {showDock && !hideDock && (
           <motion.div
-            initial={{ y: 120, opacity: 0, scale: 0.92 }}
-            animate={{ y: 0, opacity: 1, scale: 1 }}
-            exit={{ y: 120, opacity: 0, scale: 0.92 }}
-            transition={{ type: "spring", stiffness: 340, damping: 28 }}
-            className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-1.5rem)] max-w-[520px] pointer-events-none"
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            transition={{
+              type: "spring",
+              stiffness: 400,
+              damping: 35,
+            }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none"
           >
-            <div
-              className="pointer-events-auto relative"
-              onMouseEnter={() => setIsHoveringDock(true)}
-              onMouseLeave={() => setIsHoveringDock(false)}
-            >
-              {/* Ambient outer glow */}
-              <div className="absolute -inset-3 rounded-[32px] bg-gradient-to-r from-white/5 via-accent/15 to-white/5 blur-xl opacity-70" />
+            <div className="pointer-events-auto relative">
+              {/* Soft ambient glow */}
+              <div className="absolute -inset-3 rounded-full bg-white/[0.04] blur-xl" />
 
-              {/* Main glass pill */}
-              <div className="relative flex items-center justify-between gap-0.5 sm:gap-1 px-2 sm:px-2.5 py-2 rounded-[26px] bg-black/55 backdrop-blur-2xl border border-white/[0.08] shadow-[0_20px_50px_-12px_rgba(0,0,0,0.7)]">
+              {/* Main dock */}
+              <div className="relative flex items-center gap-1 px-2 py-2 rounded-2xl bg-[#0a0a0a]/80 backdrop-blur-xl border border-white/[0.08] shadow-2xl shadow-black/50">
                 {sections.map((section) => {
                   const Icon = section.icon;
                   const isActive = activeSection === section.id;
+                  const isHovered = hoveredDockItem === section.id;
 
                   return (
                     <button
                       key={section.id}
                       onClick={() => handleDesktopClick(section)}
-                      className="relative flex flex-col items-center justify-center flex-1 min-w-0 h-[52px] sm:h-[56px] rounded-2xl group hover-target"
+                      onMouseEnter={() => setHoveredDockItem(section.id)}
+                      onMouseLeave={() => setHoveredDockItem(null)}
+                      className="relative flex items-center justify-center w-11 h-11 sm:w-12 sm:h-12 rounded-xl transition-all duration-200 hover-target"
                     >
-                      {/* Liquid active blob */}
-                      {isActive && (
-                        <motion.div
-                          layoutId="dock-blob"
-                          className="absolute inset-1 rounded-[18px] bg-white/[0.09] border border-white/[0.12]"
-                          transition={{
-                            type: "spring",
-                            stiffness: 380,
-                            damping: 32,
-                          }}
-                          style={{
-                            boxShadow:
-                              "inset 0 1px 0 rgba(255,255,255,0.12), 0 0 20px rgba(255,255,255,0.05)",
-                          }}
-                        />
-                      )}
+                      {/* Active / Hover background */}
+                      <motion.div
+                        className="absolute inset-0 rounded-xl"
+                        initial={false}
+                        animate={{
+                          backgroundColor: isActive
+                            ? "rgba(255,255,255,0.12)"
+                            : isHovered
+                              ? "rgba(255,255,255,0.07)"
+                              : "rgba(255,255,255,0)",
+                          scale: isActive || isHovered ? 1 : 0.9,
+                        }}
+                        transition={{ duration: 0.2 }}
+                      />
 
                       {/* Icon */}
                       <motion.div
                         animate={{
-                          y: isActive ? -3 : 0,
-                          scale: isActive ? 1.18 : 1,
+                          y: isActive ? -1 : 0,
+                          scale: isActive ? 1.1 : isHovered ? 1.08 : 1,
                         }}
                         transition={{
                           type: "spring",
-                          stiffness: 420,
-                          damping: 24,
+                          stiffness: 400,
+                          damping: 25,
                         }}
                         className="relative z-10"
                       >
                         <Icon
-                          size={isActive ? 22 : 20}
-                          strokeWidth={isActive ? 2.3 : 1.7}
-                          className={`transition-colors duration-300 ${
+                          size={20}
+                          strokeWidth={isActive ? 2.2 : 1.8}
+                          className={`transition-colors duration-200 ${
                             isActive
                               ? "text-white"
-                              : "text-white/45 group-hover:text-white/75"
+                              : isHovered
+                                ? "text-white/90"
+                                : "text-white/50"
                           }`}
                         />
                       </motion.div>
 
-                      {/* Label – always visible on active, fades on others */}
-                      <motion.span
-                        animate={{
-                          opacity: isActive ? 1 : 0,
-                          y: isActive ? 0 : 4,
-                        }}
-                        className="absolute bottom-[3px] text-[8px] sm:text-[9px] font-mono uppercase tracking-[0.12em] text-white/70 whitespace-nowrap pointer-events-none"
-                      >
-                        {section.short}
-                      </motion.span>
+                      {/* Active indicator dot */}
+                      {isActive && (
+                        <motion.div
+                          layoutId="active-dot"
+                          className="absolute -bottom-0.5 w-1 h-1 rounded-full bg-white"
+                          transition={{
+                            type: "spring",
+                            stiffness: 500,
+                            damping: 30,
+                          }}
+                        />
+                      )}
+
+                      {/* Tooltip label */}
+                      <AnimatePresence>
+                        {isHovered && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 8, scale: 0.9 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: 6, scale: 0.95 }}
+                            transition={{ duration: 0.15 }}
+                            className="absolute -top-10 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-md bg-white text-black text-[11px] font-medium whitespace-nowrap pointer-events-none shadow-lg"
+                          >
+                            {section.short}
+                            <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-white rotate-45" />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </button>
                   );
                 })}
 
                 {/* Divider */}
-                <div className="w-px h-7 bg-white/10 mx-0.5 shrink-0" />
+                <div className="w-px h-6 bg-white/10 mx-1" />
 
-                {/* Full menu trigger */}
+                {/* Menu button */}
                 <button
                   onClick={() => {
                     setFromDesktop(false);
                     setIsMenuOpen(true);
                   }}
-                  className="relative flex items-center justify-center w-11 h-11 sm:w-12 sm:h-12 rounded-2xl shrink-0 group hover-target"
+                  onMouseEnter={() => setHoveredDockItem("menu")}
+                  onMouseLeave={() => setHoveredDockItem(null)}
+                  className="relative flex items-center justify-center w-11 h-11 sm:w-12 sm:h-12 rounded-xl hover-target"
                 >
+                  <motion.div
+                    className="absolute inset-0 rounded-xl"
+                    animate={{
+                      backgroundColor:
+                        hoveredDockItem === "menu"
+                          ? "rgba(255,255,255,0.07)"
+                          : "rgba(255,255,255,0)",
+                    }}
+                    transition={{ duration: 0.2 }}
+                  />
                   <Menu
                     size={18}
-                    className="text-white/45 group-hover:text-white transition-colors duration-300"
+                    className={`relative z-10 transition-colors duration-200 ${
+                      hoveredDockItem === "menu"
+                        ? "text-white/90"
+                        : "text-white/50"
+                    }`}
                   />
                 </button>
               </div>
@@ -385,10 +432,8 @@ useEffect(() => {
             transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
             className="fixed inset-0 z-[100] bg-bg/95 backdrop-blur-2xl flex flex-col justify-center overflow-hidden"
           >
-            {/* Subtle grid */}
             <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff04_1px,transparent_1px),linear-gradient(to_bottom,#ffffff04_1px,transparent_1px)] bg-[size:3.5rem_3.5rem] pointer-events-none" />
 
-            {/* Hover color wash */}
             <div className="absolute inset-0 pointer-events-none transition-opacity duration-700">
               {sections.map((s) => (
                 <div
@@ -400,7 +445,6 @@ useEffect(() => {
               ))}
             </div>
 
-            {/* Header */}
             {!fromDesktop && (
               <motion.div
                 animate={{ opacity: clickedSection ? 0 : 1 }}
@@ -421,7 +465,6 @@ useEffect(() => {
               </motion.div>
             )}
 
-            {/* Section list */}
             {!fromDesktop && (
               <div
                 className="relative z-20 w-full h-full overflow-y-auto pt-24 sm:pt-28 pb-28 px-5 sm:px-12 md:px-20 hide-scrollbar pointer-events-auto"
@@ -456,7 +499,6 @@ useEffect(() => {
                         onClick={() => handleCardClick(section)}
                         className="group relative flex items-center justify-between py-5 sm:py-7 md:py-8 border-b border-white/[0.07] text-left hover-target"
                       >
-                        {/* Hover wash */}
                         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.03] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
                         <div className="flex items-center gap-5 sm:gap-10 md:gap-14">
@@ -487,7 +529,6 @@ useEffect(() => {
               </div>
             )}
 
-            {/* Footer hint */}
             {!fromDesktop && (
               <motion.p
                 animate={{ opacity: clickedSection ? 0 : 1 }}
@@ -497,7 +538,6 @@ useEffect(() => {
               </motion.p>
             )}
 
-            {/* ========== EXPANDED TRANSITION OVERLAY ========== */}
             {clickedSection && (
               <motion.div
                 layoutId={fromDesktop ? undefined : `card-${clickedSection.id}`}
@@ -506,12 +546,10 @@ useEffect(() => {
                 className="fixed inset-0 z-[200] bg-bg flex flex-col items-center justify-center overflow-hidden"
                 transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
               >
-                {/* Color wash */}
                 <div
                   className={`absolute inset-0 bg-gradient-to-br ${clickedSection.color} opacity-30`}
                 />
 
-                {/* Scanline texture */}
                 <div className="absolute inset-0 bg-[linear-gradient(transparent_50%,rgba(0,0,0,0.18)_50%)] bg-[length:100%_3px] pointer-events-none mix-blend-overlay opacity-40" />
 
                 <motion.div
