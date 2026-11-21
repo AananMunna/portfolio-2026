@@ -174,14 +174,27 @@ function pt(s: number, u: number, y: number, out = new Vector3()) {
   return out.set(r * Math.sin(phi), y, -r * Math.cos(phi));
 }
 
-function loadImage(src: string): Promise<HTMLImageElement | null> {
+function loadOne(src: string, ms: number): Promise<HTMLImageElement | null> {
   return new Promise((resolve) => {
     const img = new window.Image();
+    const t = setTimeout(() => resolve(null), ms);
     img.decoding = 'async';
-    img.onload = () => resolve(img);
-    img.onerror = () => resolve(null);
+    img.onload = () => {
+      clearTimeout(t);
+      resolve(img);
+    };
+    img.onerror = () => {
+      clearTimeout(t);
+      resolve(null);
+    };
     img.src = src;
   });
+}
+
+/** small optimised copy first (fast on mobile data); the original only if that fails */
+async function loadImage(src: string, w: number) {
+  const opt = `/_next/image?url=${encodeURIComponent(src)}&w=${w}&q=75`;
+  return (await loadOne(opt, 9000)) ?? (await loadOne(src, 9000));
 }
 
 function tex(c: HTMLCanvasElement, mip: boolean) {
@@ -485,9 +498,12 @@ export default function GalleryWalk({ projects, openId, onOpen, onFail, toggle }
     };
 
     const build = async () => {
-      const imgs = await Promise.all(list.map((p) => loadImage(p.image)));
+      const imgs = await Promise.all(list.map((p) => loadImage(p.image, mobile ? 828 : 1200)));
       try {
-        await Promise.all([document.fonts?.load(`700 40px ${fonts.syne}`), document.fonts?.load(`400 30px ${fonts.mono}`)]);
+        await Promise.race([
+          Promise.all([document.fonts?.load(`700 40px ${fonts.syne}`), document.fonts?.load(`400 30px ${fonts.mono}`)]),
+          new Promise((r) => setTimeout(r, 1500)),
+        ]);
       } catch {
         /* optional */
       }
@@ -671,7 +687,13 @@ export default function GalleryWalk({ projects, openId, onOpen, onFail, toggle }
       setReady(true);
       wake();
     };
-    build();
+    const failsafe = setTimeout(() => {
+      if (!built && !disposed) onFailRef.current(); // never leave the visitor on a loading screen
+    }, 20000);
+    cleanups.push(() => clearTimeout(failsafe));
+    build().catch(() => {
+      if (!disposed) onFailRef.current();
+    });
 
     /* ───────── camera rig ───────── */
     const camPos = new Vector3();
