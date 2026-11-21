@@ -22,3 +22,6 @@ export function isLowEnd(): boolean {
   const nav = navigator as Navigator & { deviceMemory?: number };
   return (nav.deviceMemory ?? 8) <= 4 || (navigator.hardwareConcurrency ?? 8) <= 4;
 }
+
+/** the small optimised copy of a screenshot that the 3D scene uses (same URL everywhere so the browser cache is shared) */
+export const artUrl = (src: string, mobile: boolean) => `/_next/image?url=${encodeURIComponent(src)}&w=${mobile ? 640 : 1080}&q=75`;

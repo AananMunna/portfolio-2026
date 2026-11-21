@@ -42,7 +42,7 @@ import {
 import type { IUniform, Texture } from 'three';
 import { ArrowLeft, ArrowRight, ArrowUpRight } from 'lucide-react';
 import type { Project } from './Projectsdata';
-import { S0, STEP_S, camEnd, heightSvh, isLowEnd, sLast } from './galleryLayout';
+import { S0, STEP_S, artUrl, camEnd, heightSvh, isLowEnd, sLast } from './galleryLayout';
 
 const GalleryDetail = dynamic(() => import('./GalleryDetail'), { ssr: false });
 
@@ -79,9 +79,9 @@ const CARD_VERT = /* glsl */ `
     p.xy *= 1.0 + uHover * 0.018;
     float gx = p.x + uOx;
     if (abs(uBend) > 0.00001) p.z += (1.0 - cos(gx * uBend)) / uBend;   // hug the curved wall
-    float v = clamp(abs(uVel), 0.0, 1.4);
-    p.z += sin(gx * 0.6 + uPhase) * 0.2 * v;                              // sway with walking speed
-    p.y += sin(gx * 0.5 + uPhase * 1.3) * 0.09 * v;
+    float v = clamp(abs(uVel), 0.0, 1.0);
+    p.z += sin(gx * 0.6 + uPhase) * 0.07 * v;                              // sway with walking speed
+    p.y += sin(gx * 0.5 + uPhase * 1.3) * 0.03 * v;
     p.y -= (1.0 - uShow) * 0.9;                                           // rise in
     vec4 w = modelMatrix * vec4(p, 1.0);
     vW = w.xyz;
@@ -191,10 +191,8 @@ function loadOne(src: string, ms: number): Promise<HTMLImageElement | null> {
   });
 }
 
-/** small optimised copy first (fast on mobile data); the original only if that fails */
-async function loadImage(src: string, w: number) {
-  const opt = `/_next/image?url=${encodeURIComponent(src)}&w=${w}&q=75`;
-  return (await loadOne(opt, 9000)) ?? (await loadOne(src, 9000));
+async function loadImage(src: string, mobile: boolean) {
+  return (await loadOne(artUrl(src, mobile), 12000)) ?? (await loadOne(src, 12000));
 }
 
 function tex(c: HTMLCanvasElement, mip: boolean) {
@@ -451,7 +449,7 @@ export default function GalleryWalk({ projects, openId, onOpen, onFail, toggle }
     cleanups.push(() => canvas.removeEventListener('webglcontextlost', onLost));
 
     const scene = new Scene();
-    const camera = new PerspectiveCamera(60, 1, 0.1, 140);
+    const camera = new PerspectiveCamera(60, 1, 0.3, 100);
     const disposables: { dispose: () => void }[] = [];
 
     const tunnelGeo = buildTunnel(-16, S_END, low ? 46 : 70);
@@ -498,7 +496,7 @@ export default function GalleryWalk({ projects, openId, onOpen, onFail, toggle }
     };
 
     const build = async () => {
-      const imgs = await Promise.all(list.map((p) => loadImage(p.image, mobile ? 828 : 1200)));
+      const imgs = await Promise.all(list.map((p) => loadImage(p.image, mobile)));
       try {
         await Promise.race([
           Promise.all([document.fonts?.load(`700 40px ${fonts.syne}`), document.fonts?.load(`400 30px ${fonts.mono}`)]),
@@ -548,6 +546,7 @@ export default function GalleryWalk({ projects, openId, onOpen, onFail, toggle }
           uniforms,
           transparent: true,
           depthWrite: false,
+          depthTest: false,
           blending: o.additive ? AdditiveBlending : undefined,
         });
         const geo = new PlaneGeometry(w, h, segs, 1);
@@ -562,7 +561,7 @@ export default function GalleryWalk({ projects, openId, onOpen, onFail, toggle }
       list.forEach((p, i) => {
         const img = imgs[i];
         const a = img ? img.width / img.height : 1.5;
-        const w = CARD_H * clamp(a, 0.8, 1.65);
+        const w = CARD_H * clamp(a, 0.5, 1.9);
         const s = S0 + i * STEP_S;
         const side = i % 2 === 0 ? 1 : -1;
 

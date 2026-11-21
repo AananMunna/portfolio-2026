@@ -13,7 +13,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowUpRight } from 'lucide-react';
 import { projects } from './Projectsdata';
 import ProjectDetail from './Projectdetail';
-import { heightSvh, webglOK } from './galleryLayout';
+import { artUrl, heightSvh, webglOK } from './galleryLayout';
 
 const GalleryWalk = dynamic(() => import('./GalleryWalk'), { ssr: false });
 
@@ -167,6 +167,15 @@ export default function ProjectsGallery() {
   }, [selected]);
 
   useEffect(() => () => getLenis()?.start(), []);
+
+  // warm the browser cache with the small images while the visitor is still reading the page
+  useEffect(() => {
+    const m = window.matchMedia('(max-width: 767px)').matches;
+    const run = () => projects.forEach((p) => void (new window.Image().src = artUrl(p.image, m)));
+    const ric = (window as unknown as { requestIdleCallback?: (f: () => void) => void }).requestIdleCallback;
+    if (ric) ric(run);
+    else setTimeout(run, 1500);
+  }, []);
 
   const open = useCallback((id: number) => setSelectedId(id), []);
   const close = useCallback(() => setSelectedId(null), []);
