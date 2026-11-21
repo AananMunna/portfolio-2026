@@ -1,34 +1,62 @@
 'use client';
 /**
- * GalleryWalk — a long, gently curving white gallery TUNNEL.
+ * GalleryWalk — a long, gently curving tunnel you walk through by scrolling.
  *
- * Studied from the reference video:
- *  - a room/tunnel with a wall on BOTH sides, a vaulted white ceiling and a grey floor
- *  - paintings hang on both walls, each with a small serif caption underneath
- *  - scrolling walks the camera forward along the tunnel (like walking), the far end
- *    dissolves into white haze; frames sway slightly with scroll speed
- *  - hovering a frame shows a black "OPEN THE PROJECT" pill that follows the cursor
- *  - clicking turns the camera to face that frame; the frame settles on the wall and its
- *    details appear next to it, with a "Get the collection" strip to hop to another frame
- *  - bottom-centre "YOU ARE WALKING PAST / TITLE / ENTER →", arrows, GALLERY | LIST toggle
+ * Frames hang on BOTH walls. The camera walks forward with the page scroll, leaning towards the wall
+ * of the next frame. Tap/click a frame and the camera turns to face it; its details appear on the wall.
+ *
+ * Built to stay light on ordinary phones:
+ *  - nothing is created until the section is near the viewport (see ProjectsGallery)
+ *  - renders ON DEMAND — when the page is idle the GPU does nothing
+ *  - screenshots are cropped + downscaled to small textures before upload
+ *  - quality tiers (pixel-ratio, AA, mipmaps, glow) + an adaptive step-down if frames get slow
+ *  - falls back to the list view if WebGL is unavailable or the context is lost
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
-import Image from 'next/image';
-import * as THREE from 'three';
-import { ArrowLeft, ArrowRight, ArrowUpRight, Github, Plus } from 'lucide-react';
+import dynamic from 'next/dynamic';
+import { AnimatePresence } from 'motion/react';
+import {
+  AdditiveBlending,
+  BufferGeometry,
+  CanvasTexture,
+  ColorManagement,
+  DoubleSide,
+  Float32BufferAttribute,
+  Group,
+  LinearFilter,
+  LinearMipmapLinearFilter,
+  LinearSRGBColorSpace,
+  MathUtils,
+  Mesh,
+  PerspectiveCamera,
+  PlaneGeometry,
+  Raycaster,
+  Scene,
+  ShaderMaterial,
+  Shape,
+  ShapeGeometry,
+  Vector2,
+  Vector3,
+  WebGLRenderer,
+} from 'three';
+import type { IUniform, Texture } from 'three';
+import { ArrowLeft, ArrowRight, ArrowUpRight } from 'lucide-react';
 import type { Project } from './Projectsdata';
+import { S0, STEP_S, camEnd, heightSvh, isLowEnd, sLast } from './galleryLayout';
+
+const GalleryDetail = dynamic(() => import('./GalleryDetail'), { ssr: false });
 
 interface Props {
   projects: Project[];
   openId: number | null;
   onOpen: (id: number) => void; // opens the full case-study overlay
+  onFail: () => void; // WebGL unavailable / lost → list view
   toggle: React.ReactNode;
 }
 
 /* ───────────────────────── tunnel layout ───────────────────────── */
 const RP = 28; // radius of the tunnel centre-line (the corridor sweeps round to the left)
-const W = 4.3; // half-width of the tunnel
+const W = 4.3; // half-width
 const FLOOR_Y = -3.4;
 const H1 = 3.2; // where the vault starts
 const HC = 3.4; // vault rise
@@ -37,11 +65,8 @@ const CARD_H = 4.3;
 const CARD_Y = 0.35;
 const CAM_Y = -0.7;
 const TGT_Y = -0.55;
-const S0 = 11; // first frame, distance along the tunnel
-const STEP_S = 6.2; // distance between consecutive frames (they alternate walls)
 const INTRO_S = 5.5;
-const LOOK_AHEAD = 9.5;
-const VH_PER_UNIT = 9.5; // scroll length per unit walked
+const VOID = new Vector3(0.012, 0.02, 0.047); // --void #03050c
 
 /* ───────────────────────── shaders ───────────────────────── */
 const CARD_VERT = /* glsl */ `
@@ -51,15 +76,13 @@ const CARD_VERT = /* glsl */ `
   void main() {
     vUv = uv;
     vec3 p = position;
-    p.xy *= 1.0 + uHover * 0.02;
+    p.xy *= 1.0 + uHover * 0.018;
     float gx = p.x + uOx;
-    // hug the (curved) wall
-    if (abs(uBend) > 0.00001) p.z += (1.0 - cos(gx * uBend)) / uBend;
-    // soft cloth-like sway driven by walking speed
+    if (abs(uBend) > 0.00001) p.z += (1.0 - cos(gx * uBend)) / uBend;   // hug the curved wall
     float v = clamp(abs(uVel), 0.0, 1.4);
-    p.z += sin(gx * 0.6 + uPhase) * 0.2 * v;
+    p.z += sin(gx * 0.6 + uPhase) * 0.2 * v;                              // sway with walking speed
     p.y += sin(gx * 0.5 + uPhase * 1.3) * 0.09 * v;
-    p.y -= (1.0 - uShow) * 0.9;
+    p.y -= (1.0 - uShow) * 0.9;                                           // rise in
     vec4 w = modelMatrix * vec4(p, 1.0);
     vW = w.xyz;
     gl_Position = projectionMatrix * viewMatrix * w;
@@ -67,34 +90,41 @@ const CARD_VERT = /* glsl */ `
 `;
 
 const ART_FRAG = /* glsl */ `
-  uniform sampler2D uTex; uniform vec4 uUv; uniform float uHover; uniform float uShow; uniform float uFade;
+  uniform sampler2D uTex; uniform vec2 uSize; uniform float uHover; uniform float uShow; uniform float uFade;
+  uniform vec3 uVoid;
   varying vec2 vUv; varying vec3 vW;
   void main() {
-    vec2 uv = vUv * uUv.xy + uUv.zw;
-    vec3 c = texture2D(uTex, uv).rgb;
-    c *= 1.0 + uHover * 0.04;
+    vec3 c = texture2D(uTex, vUv).rgb * (0.86 + 0.14 * uHover);
+    vec2 e = min(vUv, 1.0 - vUv) * uSize;                     // distance to the nearest edge (world units)
+    float edge = 1.0 - smoothstep(0.0, 0.03, min(e.x, e.y));
+    float tick = max(step(e.x, 0.06) * step(e.y, 0.34), step(e.y, 0.06) * step(e.x, 0.34)); // crop-mark corners
+    c = mix(c, vec3(0.09, 0.125, 0.22), edge * 0.7 * (1.0 - tick));
+    c = mix(c, vec3(0.0, 1.0, 0.533), tick * (0.62 + 0.38 * uHover));
     float d = length(vW - cameraPosition);
-    c = mix(c, vec3(0.97), smoothstep(22.0, 70.0, d) * 0.55);
+    c = mix(c, uVoid, smoothstep(16.0, 58.0, d) * 0.94);
     gl_FragColor = vec4(c, uShow * uFade);
   }
 `;
 
 const FLAT_FRAG = /* glsl */ `
   uniform sampler2D uTex; uniform float uShow; uniform float uFade; uniform float uOpacity;
+  uniform vec3 uTint; uniform float uUseTint; uniform vec3 uVoid;
   varying vec2 vUv; varying vec3 vW;
   void main() {
     vec4 c = texture2D(uTex, vUv);
-    float d = length(vW - cameraPosition);
-    vec3 rgb = mix(c.rgb, vec3(0.97), smoothstep(22.0, 70.0, d) * 0.55);
-    gl_FragColor = vec4(rgb, c.a * uOpacity * uShow * uFade);
+    vec3 rgb = mix(c.rgb, uTint, uUseTint);
+    float fog = smoothstep(16.0, 58.0, length(vW - cameraPosition));
+    rgb = mix(rgb, uVoid, fog * 0.94 * (1.0 - uUseTint));
+    float a = c.a * uOpacity * uShow * uFade * (1.0 - fog * uUseTint);
+    gl_FragColor = vec4(rgb, a);
   }
 `;
 
 const TUNNEL_VERT = /* glsl */ `
-  attribute float aU;
-  varying vec3 vW; varying float vU;
+  attribute float aU; attribute float aS;
+  varying vec3 vW; varying float vU; varying float vS;
   void main() {
-    vU = aU;
+    vU = aU; vS = aS;
     vec4 w = modelMatrix * vec4(position, 1.0);
     vW = w.xyz;
     gl_Position = projectionMatrix * viewMatrix * w;
@@ -102,17 +132,32 @@ const TUNNEL_VERT = /* glsl */ `
 `;
 
 const TUNNEL_FRAG = /* glsl */ `
-  varying vec3 vW; varying float vU;
+  uniform vec3 uVoid;
+  varying vec3 vW; varying float vU; varying float vS;
+  float gridLine(float x) {
+    float f = abs(fract(x - 0.5) - 0.5) / max(fwidth(x), 0.0001);
+    return 1.0 - min(f, 1.0);
+  }
   void main() {
-    float fl = 1.0 - smoothstep(${FLOOR_Y.toFixed(2)} + 0.02, ${FLOOR_Y.toFixed(2)} + 0.12, vW.y);
-    // soft cove: grey at the base of the walls fading up to bright white
-    vec3 wall = mix(vec3(0.80, 0.80, 0.82), vec3(0.995, 0.995, 0.99), smoothstep(${FLOOR_Y.toFixed(2)}, ${(FLOOR_Y + 5.2).toFixed(2)}, vW.y));
-    // gentle ceiling falloff towards the vault crown
-    wall *= 1.0 - smoothstep(${H1.toFixed(2)}, ${(H1 + HC).toFixed(2)}, vW.y) * 0.07;
-    vec3 floorC = mix(vec3(0.74, 0.74, 0.76), vec3(0.82, 0.82, 0.835), smoothstep(0.0, ${W.toFixed(2)}, abs(vU)));
-    vec3 c = mix(wall, floorC, fl);
+    float F = ${FLOOR_Y.toFixed(2)};
+    float fl = 1.0 - smoothstep(F + 0.02, F + 0.14, vW.y);
+
+    // walls: deep blue-black, a phosphor baseboard line, faint cyan ribs along the vault
+    vec3 wall = mix(vec3(0.016, 0.026, 0.055), vec3(0.036, 0.056, 0.108), smoothstep(F, F + 5.5, vW.y));
+    float base = 1.0 - smoothstep(0.0, 0.035, abs(vW.y - (F + 0.2)));
+    wall = mix(wall, vec3(0.0, 0.8, 0.42), base * 0.55);
+    float rib = gridLine(vS / 5.5) * smoothstep(${(H1 - 0.2).toFixed(2)}, ${(H1 + 0.6).toFixed(2)}, vW.y);
+    wall = mix(wall, vec3(0.0, 0.9, 1.0), rib * 0.26);
+
+    // floor: dim grid + a phosphor line down the middle that leads you forward
+    vec3 fc = vec3(0.028, 0.045, 0.09);
+    float grid = max(gridLine(vS / 2.2), gridLine(vU / 1.4));
+    fc = mix(fc, vec3(0.09, 0.125, 0.22), grid * 0.9);
+    fc = mix(fc, vec3(0.0, 1.0, 0.533), (1.0 - smoothstep(0.0, 0.05, abs(vU))) * 0.5);
+
+    vec3 c = mix(wall, fc, fl);
     float d = length(vW - cameraPosition);
-    c = mix(c, vec3(0.99), smoothstep(20.0, 72.0, d) * 0.7);
+    c = mix(c, uVoid, smoothstep(12.0, 56.0, d));
     gl_FragColor = vec4(c, 1.0);
   }
 `;
@@ -121,11 +166,9 @@ const TUNNEL_FRAG = /* glsl */ `
 const pad = (n: number) => String(n).padStart(2, '0');
 const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
 const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
-const SERIF = '"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif';
-const EASE: [number, number, number, number] = [0.16, 1, 0.3, 1];
 
 /** point on the tunnel: s = distance walked, u = lateral offset (+ right wall), y = height */
-function pt(s: number, u: number, y: number, out = new THREE.Vector3()) {
+function pt(s: number, u: number, y: number, out = new Vector3()) {
   const phi = -s / RP;
   const r = RP + u;
   return out.set(r * Math.sin(phi), y, -r * Math.cos(phi));
@@ -141,107 +184,127 @@ function loadImage(src: string): Promise<HTMLImageElement | null> {
   });
 }
 
-function canvasTex(c: HTMLCanvasElement) {
-  const t = new THREE.CanvasTexture(c);
-  t.minFilter = THREE.LinearFilter;
-  t.generateMipmaps = false;
-  t.anisotropy = 4;
+function tex(c: HTMLCanvasElement, mip: boolean) {
+  const t = new CanvasTexture(c);
+  t.generateMipmaps = mip;
+  t.minFilter = mip ? LinearMipmapLinearFilter : LinearFilter;
+  t.magFilter = LinearFilter;
   return t;
 }
 
-function makeCaption(p: Project, mono: string) {
+/** crop the screenshot to the frame's aspect (top-aligned for tall pages) and shrink it before it hits the GPU */
+function prepArt(img: HTMLImageElement, aspect: number, maxW: number) {
+  const w = Math.min(maxW, img.width);
+  const h = Math.round(w / aspect);
   const c = document.createElement('canvas');
-  c.width = 1024;
-  c.height = 320;
-  const ctx = c.getContext('2d')!;
-  ctx.textBaseline = 'top';
-  ctx.fillStyle = '#161616';
-  ctx.font = `400 74px ${SERIF}`;
-  ctx.fillText(p.title, 8, 8);
-  ctx.fillStyle = '#5c5c5c';
-  ctx.font = `italic 400 58px ${SERIF}`;
-  ctx.fillText(p.category, 8, 104);
-  ctx.fillStyle = '#8a8a8a';
-  ctx.font = `400 34px ${mono}`;
-  if ('letterSpacing' in ctx) (ctx as unknown as { letterSpacing: string }).letterSpacing = '3px';
-  ctx.fillText([p.year, ...p.tags.slice(0, 3)].join('  ·  ').toUpperCase(), 8, 196);
-  return canvasTex(c);
-}
-
-function makePanel(lines: { text: string; size: number; font?: string; color?: string; gap?: number }[], mono: string) {
-  const c = document.createElement('canvas');
-  c.width = 768;
-  c.height = 1024;
-  const ctx = c.getContext('2d')!;
-  ctx.fillStyle = '#ecebe7';
-  ctx.fillRect(0, 0, c.width, c.height);
-  ctx.textBaseline = 'top';
-  let y = 80;
-  for (const l of lines) {
-    ctx.fillStyle = l.color ?? '#161616';
-    ctx.font = `${l.font === 'mono' ? '400' : '800'} ${l.size}px ${l.font === 'mono' ? mono : 'Impact, "Arial Narrow", Arial, sans-serif'}`;
-    if ('letterSpacing' in ctx)
-      (ctx as unknown as { letterSpacing: string }).letterSpacing = l.font === 'mono' ? '6px' : '0px';
-    ctx.fillText(l.text, 64, y);
-    y += l.size + (l.gap ?? 18);
+  c.width = w;
+  c.height = h;
+  const srcA = img.width / img.height;
+  let sx = 0;
+  let sy = 0;
+  let sw = img.width;
+  let sh = img.height;
+  if (srcA > aspect) {
+    sw = sh * aspect;
+    sx = (img.width - sw) / 2;
+  } else {
+    sh = sw / aspect;
   }
-  return canvasTex(c);
-}
-
-function makeShadow() {
-  const c = document.createElement('canvas');
-  c.width = c.height = 256;
-  const ctx = c.getContext('2d')!;
-  const g = ctx.createRadialGradient(128, 128, 20, 128, 128, 128);
-  g.addColorStop(0, 'rgba(20,20,30,0.5)');
-  g.addColorStop(0.55, 'rgba(20,20,30,0.16)');
-  g.addColorStop(1, 'rgba(20,20,30,0)');
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, 256, 256);
-  return canvasTex(c);
-}
-
-function placeholder(p: Project) {
-  const c = document.createElement('canvas');
-  c.width = 960;
-  c.height = 600;
-  const ctx = c.getContext('2d')!;
-  const g = ctx.createLinearGradient(0, 0, 960, 600);
-  g.addColorStop(0, '#d9dde6');
-  g.addColorStop(1, '#bcc4d4');
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, 960, 600);
-  ctx.fillStyle = '#2a3142';
-  ctx.font = `600 72px ${SERIF}`;
-  ctx.textAlign = 'center';
-  ctx.fillText(p.title, 480, 320);
+  c.getContext('2d')!.drawImage(img, sx, sy, sw, sh, 0, 0, w, h);
   return c;
 }
 
+interface Fonts {
+  syne: string;
+  mono: string;
+}
+
+function makeCaption(p: Project, i: number, f: Fonts, mip: boolean) {
+  const c = document.createElement('canvas');
+  c.width = 768;
+  c.height = 240;
+  const ctx = c.getContext('2d')!;
+  ctx.textBaseline = 'top';
+  const ls = (v: string) => {
+    if ('letterSpacing' in ctx) (ctx as unknown as { letterSpacing: string }).letterSpacing = v;
+  };
+  ls('3px');
+  ctx.fillStyle = '#00ff88';
+  ctx.font = `400 30px ${f.mono}`;
+  ctx.fillText(`${pad(i + 1)} // ${p.year}`, 4, 4);
+  ls('0px');
+  ctx.fillStyle = '#ccdae8';
+  ctx.font = `700 66px ${f.syne}`;
+  ctx.fillText(p.title.toUpperCase(), 3, 44);
+  ls('2px');
+  ctx.fillStyle = '#6a7f98';
+  ctx.font = `400 27px ${f.mono}`;
+  ctx.fillText(p.category.toUpperCase(), 4, 134);
+  ctx.fillStyle = '#34496a';
+  ctx.fillText(p.tags.slice(0, 3).join(' · ').toUpperCase(), 4, 176);
+  return tex(c, mip);
+}
+
+function makePanel(lines: { t: string; size: number; font: 'mono' | 'syne'; color: string; gap?: number }[], f: Fonts, w = 640, h = 860) {
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  const ctx = c.getContext('2d')!;
+  ctx.fillStyle = '#070b16';
+  ctx.fillRect(0, 0, w, h);
+  ctx.strokeStyle = '#172038';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(1.5, 1.5, w - 3, h - 3);
+  ctx.textBaseline = 'top';
+  let y = 64;
+  for (const l of lines) {
+    ctx.fillStyle = l.color;
+    ctx.font = l.font === 'mono' ? `400 ${l.size}px ${f.mono}` : `800 ${l.size}px ${f.syne}`;
+    if ('letterSpacing' in ctx) (ctx as unknown as { letterSpacing: string }).letterSpacing = l.font === 'mono' ? '3px' : '-2px';
+    ctx.fillText(l.t, 52, y);
+    y += l.size + (l.gap ?? 16);
+  }
+  return tex(c, false);
+}
+
+function makeGlow() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const ctx = c.getContext('2d')!;
+  const g = ctx.createRadialGradient(64, 64, 4, 64, 64, 64);
+  g.addColorStop(0, 'rgba(255,255,255,1)');
+  g.addColorStop(0.5, 'rgba(255,255,255,0.35)');
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 128, 128);
+  return tex(c, false);
+}
+
 /** The tunnel shell: floor + walls + vaulted ceiling, extruded along the bending centre-line. */
-function buildTunnel(sMin: number, sMax: number, sEnd: number) {
+function buildTunnel(sMin: number, sMax: number, steps: number) {
   const prof: [number, number][] = [[-W, FLOOR_Y], [-W, H1]];
-  const K = 22;
+  const K = 16;
   for (let k = 1; k < K; k++) {
     const a = Math.PI - (k / K) * Math.PI;
     prof.push([W * Math.cos(a), H1 + HC * Math.sin(a)]);
   }
   prof.push([W, H1], [W, FLOOR_Y]);
   const P = prof.length;
-  const n = 110;
   const pos: number[] = [];
   const aU: number[] = [];
+  const aS: number[] = [];
   const idx: number[] = [];
-  const v = new THREE.Vector3();
-  for (let j = 0; j <= n; j++) {
-    const s = sMin + ((sMax - sMin) * j) / n;
+  const v = new Vector3();
+  for (let j = 0; j <= steps; j++) {
+    const s = sMin + ((sMax - sMin) * j) / steps;
     for (const [u, y] of prof) {
       pt(s, u, y, v);
       pos.push(v.x, v.y, v.z);
       aU.push(u);
+      aS.push(s);
     }
   }
-  for (let j = 0; j < n; j++) {
+  for (let j = 0; j < steps; j++) {
     for (let k = 0; k < P; k++) {
       const k2 = (k + 1) % P;
       const a = j * P + k;
@@ -251,31 +314,31 @@ function buildTunnel(sMin: number, sMax: number, sEnd: number) {
       idx.push(a, b, c, b, d, c);
     }
   }
-  // end wall (closes the far end of the tunnel)
-  const shape = new THREE.Shape(prof.map(([u, y]) => new THREE.Vector2(u, y)));
-  const cap = new THREE.ShapeGeometry(shape);
+  // end wall
+  const cap = new ShapeGeometry(new Shape(prof.map(([u, y]) => new Vector2(u, y))));
   const cp = cap.getAttribute('position');
   const base = pos.length / 3;
   for (let i = 0; i < cp.count; i++) {
-    pt(sEnd, cp.getX(i), cp.getY(i), v);
+    pt(sMax, cp.getX(i), cp.getY(i), v);
     pos.push(v.x, v.y, v.z);
     aU.push(cp.getX(i));
+    aS.push(sMax);
   }
   Array.from(cap.getIndex()!.array).forEach((i) => idx.push(base + i));
   cap.dispose();
 
-  const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  g.setAttribute('aU', new THREE.Float32BufferAttribute(aU, 1));
+  const g = new BufferGeometry();
+  g.setAttribute('position', new Float32BufferAttribute(pos, 3));
+  g.setAttribute('aU', new Float32BufferAttribute(aU, 1));
+  g.setAttribute('aS', new Float32BufferAttribute(aS, 1));
   g.setIndex(idx);
   return g;
 }
 
 /* ───────────────────────── component ───────────────────────── */
-export default function GalleryWalk({ projects, openId, onOpen, toggle }: Props) {
+export default function GalleryWalk({ projects, openId, onOpen, onFail, toggle }: Props) {
   const N = projects.length;
-  const S_LAST = S0 + (N - 1) * STEP_S;
-  const S_CAM_END = S_LAST + 6;
+  const S_END = sLast(N) + 26;
 
   const sectionRef = useRef<HTMLElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -283,12 +346,15 @@ export default function GalleryWalk({ projects, openId, onOpen, toggle }: Props)
   const pillRef = useRef<HTMLDivElement>(null);
   const api = useRef<{ go: (i: number) => void; fly: (i: number) => void; release: () => void } | null>(null);
   const onOpenRef = useRef(onOpen);
+  const onFailRef = useRef(onFail);
   const projectsRef = useRef(projects);
   useEffect(() => {
     onOpenRef.current = onOpen;
+    onFailRef.current = onFail;
     projectsRef.current = projects;
   });
 
+  const [mobile] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches);
   const [active, setActive] = useState(0);
   const [detail, setDetail] = useState<number | null>(null);
   const [hovering, setHovering] = useState(false);
@@ -305,6 +371,11 @@ export default function GalleryWalk({ projects, openId, onOpen, toggle }: Props)
     detailRef.current = i;
     setDetail(i);
     api.current?.fly(i);
+    try {
+      navigator.vibrate?.(8);
+    } catch {
+      /* not supported */
+    }
   }, []);
 
   /* the page must not scroll while a frame is being read */
@@ -328,6 +399,7 @@ export default function GalleryWalk({ projects, openId, onOpen, toggle }: Props)
     }
   }, [openId]);
 
+  /* ───────────────────────── the scene ───────────────────────── */
   useEffect(() => {
     const section = sectionRef.current!;
     const stage = stageRef.current!;
@@ -335,42 +407,59 @@ export default function GalleryWalk({ projects, openId, onOpen, toggle }: Props)
     const pill = pillRef.current!;
     const list = projectsRef.current;
     const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    const low = isLowEnd();
+    const dpr = window.devicePixelRatio || 1;
     let disposed = false;
     let raf = 0;
     const cleanups: (() => void)[] = [];
 
-    THREE.ColorManagement.enabled = false;
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-    renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
-    renderer.setClearColor(0xfbfbfa, 1);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
-    const maxAniso = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+    ColorManagement.enabled = false;
+    let renderer: WebGLRenderer;
+    try {
+      renderer = new WebGLRenderer({
+        canvas,
+        antialias: !low && dpr < 2, // on dense screens AA is wasted work
+        powerPreference: 'high-performance',
+      });
+    } catch {
+      onFailRef.current();
+      return;
+    }
+    renderer.outputColorSpace = LinearSRGBColorSpace;
+    renderer.setClearColor(0x03050c, 1);
+    let pr = low ? 1 : Math.min(dpr, mobile ? 1.5 : 1.75);
+    renderer.setPixelRatio(pr);
 
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 160);
+    const onLost = (e: Event) => {
+      e.preventDefault();
+      onFailRef.current();
+    };
+    canvas.addEventListener('webglcontextlost', onLost);
+    cleanups.push(() => canvas.removeEventListener('webglcontextlost', onLost));
+
+    const scene = new Scene();
+    const camera = new PerspectiveCamera(60, 1, 0.1, 140);
     const disposables: { dispose: () => void }[] = [];
 
-    /* tunnel */
-    const tunnelGeo = buildTunnel(-16, S_LAST + 26, S_LAST + 26);
-    const tunnelMat = new THREE.ShaderMaterial({
+    const tunnelGeo = buildTunnel(-16, S_END, low ? 46 : 70);
+    const tunnelMat = new ShaderMaterial({
       vertexShader: TUNNEL_VERT,
       fragmentShader: TUNNEL_FRAG,
-      side: THREE.DoubleSide,
+      uniforms: { uVoid: { value: VOID } },
+      side: DoubleSide,
     });
-    scene.add(new THREE.Mesh(tunnelGeo, tunnelMat));
+    scene.add(new Mesh(tunnelGeo, tunnelMat));
     disposables.push(tunnelGeo, tunnelMat);
 
-    const shadowTex = makeShadow();
-    disposables.push(shadowTex);
-    const root = new THREE.Group();
+    const root = new Group();
     scene.add(root);
 
     const U = { vel: { value: 0 } };
     interface Card {
-      art: THREE.Mesh | null;
-      shows: THREE.IUniform[];
-      fades: THREE.IUniform[];
-      hovers: THREE.IUniform[];
+      art: Mesh | null;
+      shows: IUniform[];
+      fades: IUniform[];
+      hovers: IUniform[];
       s: number;
       side: number;
       w: number;
@@ -378,62 +467,80 @@ export default function GalleryWalk({ projects, openId, onOpen, toggle }: Props)
       fade: number;
     }
     const cards: Card[] = [];
+    const glowMeshes: Mesh[] = [];
 
-    const monoFamily =
-      getComputedStyle(document.documentElement).getPropertyValue('--font-share-tech-mono').trim() ||
-      'ui-monospace, monospace';
+    const cs = getComputedStyle(document.documentElement);
+    const fonts: Fonts = {
+      syne: cs.getPropertyValue('--font-syne').trim() || 'sans-serif',
+      mono: cs.getPropertyValue('--font-share-tech-mono').trim() || 'ui-monospace, monospace',
+    };
+    const mip = !low;
+    const texW = low ? 640 : mobile ? 800 : 1100;
+    const segs = low ? 6 : 14;
+
+    let built = false;
+    let dirty = true;
+    const wake = () => {
+      dirty = true;
+    };
 
     const build = async () => {
       const imgs = await Promise.all(list.map((p) => loadImage(p.image)));
       try {
-        await document.fonts?.load(`400 30px ${monoFamily}`);
+        await Promise.all([document.fonts?.load(`700 40px ${fonts.syne}`), document.fonts?.load(`400 30px ${fonts.mono}`)]);
       } catch {
         /* optional */
       }
       if (disposed) return;
 
-      /** one textured quad hanging on a wall */
-      const addQuad = (
-        tex: THREE.Texture,
+      const glowTex = low ? null : makeGlow();
+      if (glowTex) disposables.push(glowTex);
+
+      const mkQuad = (
+        map: Texture,
         w: number,
         h: number,
         s: number,
         side: number,
         y: number,
-        opts: { art?: { uv: THREE.Vector4 }; opacity?: number; ox?: number; order: number }
+        o: { frag: string; extra: Record<string, IUniform>; order: number; ox?: number; additive?: boolean; z?: number }
       ) => {
         const phi = -s / RP;
         const r = RP + side * HANG;
-        const group = new THREE.Group();
+        const group = new Group();
         group.position.set(r * Math.sin(phi), y, -r * Math.cos(phi));
         group.rotation.y = side > 0 ? -phi : Math.PI - phi;
         root.add(group);
-        const shared: Record<string, THREE.IUniform> = {
+        const uniforms: Record<string, IUniform> = {
           uVel: U.vel,
           uShow: { value: 0 },
           uFade: { value: 1 },
           uPhase: { value: s * 0.9 },
           uBend: { value: side / r },
-          uOx: { value: opts.ox ?? 0 },
+          uOx: { value: o.ox ?? 0 },
           uHover: { value: 0 },
-          uTex: { value: tex },
-          uOpacity: { value: opts.opacity ?? 1 },
+          uTex: { value: map },
+          uVoid: { value: VOID },
+          uOpacity: { value: 1 },
+          uTint: { value: new Vector3(0, 1, 0.533) },
+          uUseTint: { value: 0 },
+          ...o.extra,
         };
-        if (opts.art) shared.uUv = { value: opts.art.uv };
-        const mat = new THREE.ShaderMaterial({
+        const mat = new ShaderMaterial({
           vertexShader: CARD_VERT,
-          fragmentShader: opts.art ? ART_FRAG : FLAT_FRAG,
-          uniforms: shared,
+          fragmentShader: o.frag,
+          uniforms,
           transparent: true,
           depthWrite: false,
+          blending: o.additive ? AdditiveBlending : undefined,
         });
-        const geo = new THREE.PlaneGeometry(w, h, 40, 1);
-        const mesh = new THREE.Mesh(geo, mat);
-        mesh.renderOrder = opts.order;
-        mesh.position.x = opts.ox ?? 0;
+        const geo = new PlaneGeometry(w, h, segs, 1);
+        const mesh = new Mesh(geo, mat);
+        mesh.renderOrder = o.order;
+        mesh.position.set(o.ox ?? 0, 0, o.z ?? 0);
         group.add(mesh);
         disposables.push(mat, geo);
-        return { mesh, shared };
+        return { mesh, u: uniforms };
       };
 
       list.forEach((p, i) => {
@@ -443,43 +550,54 @@ export default function GalleryWalk({ projects, openId, onOpen, toggle }: Props)
         const s = S0 + i * STEP_S;
         const side = i % 2 === 0 ? 1 : -1;
 
-        // artwork texture + crop (keep the top of tall screenshots)
-        let tex: THREE.Texture;
-        const uv = new THREE.Vector4(1, 1, 0, 0);
+        let map: Texture;
         if (img) {
-          tex = new THREE.Texture(img);
-          const cardA = w / CARD_H;
-          if (a > cardA) {
-            const rx = cardA / a;
-            uv.set(rx, 1, (1 - rx) / 2, 0);
-          } else {
-            const ry = a / cardA;
-            uv.set(1, ry, 0, 1 - ry);
-          }
+          map = tex(prepArt(img, w / CARD_H, texW), mip);
         } else {
-          tex = new THREE.CanvasTexture(placeholder(p));
+          const c = document.createElement('canvas');
+          c.width = 400;
+          c.height = Math.round(400 / (w / CARD_H));
+          const g = c.getContext('2d')!;
+          g.fillStyle = '#0b1120';
+          g.fillRect(0, 0, c.width, c.height);
+          map = tex(c, false);
         }
-        tex.anisotropy = maxAniso;
-        tex.needsUpdate = true;
-        disposables.push(tex);
+        disposables.push(map);
 
-        const sh = addQuad(shadowTex, w * 1.28, CARD_H * 1.3, s, side, CARD_Y - 0.12, { opacity: 0.55, order: 1 });
-        const art = addQuad(tex, w, CARD_H, s, side, CARD_Y, { art: { uv }, order: 2 });
-        const capTex = makeCaption(p, monoFamily);
+        let glow: ReturnType<typeof mkQuad> | null = null;
+        if (glowTex) {
+          glow = mkQuad(glowTex, w * 1.8, CARD_H * 1.7, s, side, CARD_Y, {
+            frag: FLAT_FRAG,
+            extra: { uUseTint: { value: 1 }, uOpacity: { value: 0.1 } },
+            order: 1,
+            additive: true,
+            z: -0.05,
+          });
+          glowMeshes.push(glow.mesh);
+        }
+        const art = mkQuad(map, w, CARD_H, s, side, CARD_Y, {
+          frag: ART_FRAG,
+          extra: { uSize: { value: new Vector2(w, CARD_H) } },
+          order: 2,
+        });
+        const capTex = makeCaption(p, i, fonts, mip);
         disposables.push(capTex);
-        const capW = 3.5;
-        const capH = capW * (320 / 1024);
+        const capW = 3.4;
+        const capH = capW * (240 / 768);
         const capOx = -w / 2 + capW / 2;
-        const cap = addQuad(capTex, capW, capH, s, side, CARD_Y - CARD_H / 2 - 0.32 - capH / 2, {
-          ox: capOx,
+        const cap = mkQuad(capTex, capW, capH, s, side, CARD_Y - CARD_H / 2 - 0.3 - capH / 2, {
+          frag: FLAT_FRAG,
+          extra: {},
           order: 3,
+          ox: capOx,
         });
         art.mesh.userData.index = cards.length;
+        const us = (k: 'uShow' | 'uFade' | 'uHover') => [glow?.u[k], art.u[k], cap.u[k]].filter(Boolean) as IUniform[];
         cards.push({
           art: art.mesh,
-          shows: [sh.shared.uShow, art.shared.uShow, cap.shared.uShow],
-          fades: [sh.shared.uFade, art.shared.uFade, cap.shared.uFade],
-          hovers: [art.shared.uHover, cap.shared.uHover],
+          shows: us('uShow'),
+          fades: us('uFade'),
+          hovers: [art.u.uHover, cap.u.uHover],
           s,
           side,
           w,
@@ -488,46 +606,85 @@ export default function GalleryWalk({ projects, openId, onOpen, toggle }: Props)
         });
       });
 
-      // entrance panel (grey title card on the left wall, like the video)
+      // entrance panel (left wall) — reads like a terminal prompt
       const introTex = makePanel(
         [
-          { text: 'SELECTED WORK', size: 34, font: 'mono', color: '#7a7a7a', gap: 40 },
-          { text: 'THE', size: 150 },
-          { text: 'PROJECT', size: 150 },
-          { text: 'GALLERY', size: 150, gap: 50 },
-          { text: `${pad(list.length)} PROJECTS`, size: 34, font: 'mono', color: '#7a7a7a' },
+          { t: '~/aanan', size: 28, font: 'mono', color: '#6a7f98', gap: 22 },
+          { t: '$ ls work/', size: 34, font: 'mono', color: '#00ff88', gap: 54 },
+          { t: 'THE', size: 132, font: 'syne', color: '#ccdae8', gap: 4 },
+          { t: 'WORK', size: 132, font: 'syne', color: '#ccdae8', gap: 60 },
+          { t: `${pad(list.length)} entries`, size: 28, font: 'mono', color: '#6a7f98', gap: 14 },
+          { t: 'keep walking →', size: 28, font: 'mono', color: '#00ff88' },
         ],
-        monoFamily
+        fonts
       );
       disposables.push(introTex);
-      const intro = addQuad(introTex, 3.3, 4.4, INTRO_S, -1, 0.3, { order: 2 });
+      const intro = mkQuad(introTex, 3.2, 4.3, INTRO_S, -1, CARD_Y, { frag: FLAT_FRAG, extra: {}, order: 2 });
       cards.push({
         art: null,
-        shows: [intro.shared.uShow],
-        fades: [intro.shared.uFade],
+        shows: [intro.u.uShow],
+        fades: [intro.u.uFade],
         hovers: [],
         s: INTRO_S,
         side: -1,
-        w: 3,
+        w: 3.2,
         hover: 0,
         fade: 1,
       });
 
+      // far end of the tunnel
+      const endTex = makePanel(
+        [
+          { t: '// end of tour', size: 28, font: 'mono', color: '#6a7f98', gap: 30 },
+          { t: 'GOT AN', size: 96, font: 'syne', color: '#ccdae8', gap: 2 },
+          { t: 'IDEA?', size: 96, font: 'syne', color: '#00ff88', gap: 40 },
+          { t: 'scroll on → contact', size: 26, font: 'mono', color: '#6a7f98' },
+        ],
+        fonts,
+        640,
+        520
+      );
+      disposables.push(endTex);
+      {
+        const phi = -(S_END - 0.2) / RP;
+        const g = new Group();
+        g.position.copy(pt(S_END - 0.2, 0, 0.4));
+        g.rotation.y = Math.PI / 2 - phi;
+        const geo = new PlaneGeometry(5, 4.06);
+        const mat = new ShaderMaterial({
+          vertexShader: CARD_VERT,
+          fragmentShader: FLAT_FRAG,
+          uniforms: {
+            uVel: { value: 0 }, uPhase: { value: 0 }, uBend: { value: 0 }, uOx: { value: 0 }, uShow: { value: 1 },
+            uHover: { value: 0 }, uTex: { value: endTex }, uFade: { value: 1 }, uOpacity: { value: 1 },
+            uTint: { value: new Vector3() }, uUseTint: { value: 0 }, uVoid: { value: VOID },
+          },
+          transparent: true,
+          depthWrite: false,
+        });
+        g.add(new Mesh(geo, mat));
+        root.add(g);
+        disposables.push(geo, mat);
+      }
+
+      built = true;
       setReady(true);
+      wake();
     };
     build();
 
     /* ───────── camera rig ───────── */
-    const camPos = new THREE.Vector3();
-    const camTgt = new THREE.Vector3();
-    const flyPos = new THREE.Vector3();
-    const flyTgt = new THREE.Vector3();
-    const wantPos = new THREE.Vector3();
-    const wantTgt = new THREE.Vector3();
-    const pc = new THREE.Vector3();
-    const nrm = new THREE.Vector3();
-    const rgt = new THREE.Vector3();
-    const UP = new THREE.Vector3(0, 1, 0);
+    const camPos = new Vector3();
+    const camTgt = new Vector3();
+    const flyPos = new Vector3();
+    const flyTgt = new Vector3();
+    const wantPos = new Vector3();
+    const wantTgt = new Vector3();
+    const pc = new Vector3();
+    const nrm = new Vector3();
+    const rgt = new Vector3();
+    const UP = new Vector3(0, 1, 0);
+    const END = camEnd(list.length);
     let cur = 0;
     let target = 0;
     let vel = 0;
@@ -541,19 +698,29 @@ export default function GalleryWalk({ projects, openId, onOpen, toggle }: Props)
     let activeIdx = 0;
     let lastT = performance.now();
     let aspect = 1;
-    let flyReady = false;
+    let portrait = false;
     let baseFov = 64;
+    let flyReady = false;
     let lean = 0;
     let yawU = 0;
+    let idle = 0;
+    let slow = 0;
+    let frames = 0;
+    let acc = 0;
+    let px = 0;
+    let py = 0;
+    let pickPending = false;
+    let touchMode = false;
 
     const lenis = () => (window as unknown as { lenis?: { scrollTo: (y: number, o?: object) => void } }).lenis;
     const scrollToY = (y: number, immediate = false) => {
       const l = lenis();
-      if (l) l.scrollTo(y, immediate ? { immediate: true, force: true } : { duration: 1.6 });
+      if (l) l.scrollTo(y, immediate ? { immediate: true, force: true } : { duration: 1.5 });
       else window.scrollTo({ top: y, behavior: immediate ? 'auto' : 'smooth' });
     };
     const totalScroll = () => Math.max(1, section.offsetHeight - window.innerHeight);
     const sectionTop = () => section.getBoundingClientRect().top + window.scrollY;
+    const readTarget = () => clamp(-section.getBoundingClientRect().top / totalScroll(), 0, 1);
     const artCards = () => cards.filter((c) => c.art);
 
     const resize = () => {
@@ -561,10 +728,12 @@ export default function GalleryWalk({ projects, openId, onOpen, toggle }: Props)
       const h = stage.clientHeight;
       renderer.setSize(w, h, false);
       aspect = w / h;
+      portrait = aspect < 0.9;
+      baseFov = aspect < 0.75 ? 66 : aspect < 1.15 ? 68 : 64;
       camera.aspect = aspect;
-      baseFov = aspect < 0.75 ? 76 : aspect < 1.15 ? 70 : 64;
       camera.fov = baseFov;
       camera.updateProjectionMatrix();
+      wake();
     };
     resize();
     const ro = new ResizeObserver(resize);
@@ -574,45 +743,67 @@ export default function GalleryWalk({ projects, openId, onOpen, toggle }: Props)
     const io = new IntersectionObserver(
       ([e]) => {
         visible = e.isIntersecting;
-        if (visible) introStarted = true;
+        if (visible) {
+          introStarted = true;
+          target = readTarget();
+          wake();
+        }
       },
-      { rootMargin: '120px 0px', threshold: 0 }
+      { rootMargin: '80px 0px', threshold: 0 }
     );
     io.observe(section);
     cleanups.push(() => io.disconnect());
 
-    /* pointer / hover / click */
-    const ray = new THREE.Raycaster();
-    const ndc = new THREE.Vector2();
+    const onScroll = () => {
+      if (flyTarget === 0) target = readTarget();
+      wake();
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    cleanups.push(() => window.removeEventListener('scroll', onScroll));
+
+    /* pointer / hover / tap */
+    const ray = new Raycaster();
+    const ndc = new Vector2();
     const pick = (clientX: number, clientY: number) => {
       const r = canvas.getBoundingClientRect();
       ndc.set(((clientX - r.left) / r.width) * 2 - 1, -(((clientY - r.top) / r.height) * 2 - 1));
       ray.setFromCamera(ndc, camera);
-      const meshes = artCards().map((c) => c.art!);
-      const hit = ray.intersectObjects(meshes, false)[0];
+      const hit = ray.intersectObjects(artCards().map((c) => c.art!), false)[0];
       return hit ? (hit.object.userData.index as number) : -1;
+    };
+    const openFrame = (i: number) => {
+      hoverIdx = -1;
+      setHovering(false);
+      flyIdx = i;
+      flyTarget = 1;
+      detailRef.current = i;
+      setDetail(i);
+      try {
+        navigator.vibrate?.(8);
+      } catch {
+        /* not supported */
+      }
+      wake();
     };
 
     let down: { x: number; y: number } | null = null;
     let dragged = false;
     let hoverState = false;
-
     const onMove = (e: PointerEvent) => {
-      pill.style.transform = `translate3d(${e.clientX}px, ${e.clientY}px, 0) translate(14px, 14px)`;
-      if (down && e.pointerType !== 'touch' && flyTarget === 0) {
+      touchMode = e.pointerType === 'touch';
+      if (touchMode) return;
+      px = e.clientX;
+      py = e.clientY;
+      pill.style.transform = `translate3d(${px}px, ${py}px, 0) translate(14px, 14px)`;
+      if (down && flyTarget === 0) {
         if (Math.abs(e.clientX - down.x) > 5) dragged = true;
         if (dragged) {
           scrollToY(window.scrollY - (e.movementX || 0) * 2.4, true);
           canvas.style.cursor = 'grabbing';
         }
       }
-      if (flyTarget > 0 || e.pointerType === 'touch') return;
-      hoverIdx = dragged ? -1 : pick(e.clientX, e.clientY);
-      const h = hoverIdx >= 0;
-      if (h !== hoverState) {
-        hoverState = h;
-        setHovering(h);
-      }
+      pickPending = true;
+      wake();
     };
     const onDown = (e: PointerEvent) => {
       down = { x: e.clientX, y: e.clientY };
@@ -624,39 +815,40 @@ export default function GalleryWalk({ projects, openId, onOpen, toggle }: Props)
       down = null;
       dragged = false;
       canvas.style.cursor = '';
-      if (!d || wasDrag || flyTarget > 0) return;
+      if (!d || wasDrag || flyTarget > 0 || !built) return;
       if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > 10) return;
       const i = pick(e.clientX, e.clientY);
-      if (i >= 0) {
-        hoverIdx = -1;
-        hoverState = false;
-        setHovering(false);
-        flyIdx = i;
-        flyTarget = 1;
-        detailRef.current = i;
-        setDetail(i);
-      }
+      if (i >= 0) openFrame(i);
+    };
+    const onCancel = () => {
+      down = null;
+      dragged = false;
     };
     const onLeave = () => {
       hoverIdx = -1;
-      hoverState = false;
-      setHovering(false);
+      pickPending = false;
+      if (hoverState) {
+        hoverState = false;
+        setHovering(false);
+      }
+      wake();
     };
-    stage.addEventListener('pointermove', onMove);
-    stage.addEventListener('pointerdown', onDown);
+    stage.addEventListener('pointermove', onMove, { passive: true });
+    stage.addEventListener('pointerdown', onDown, { passive: true });
     window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onCancel);
     stage.addEventListener('pointerleave', onLeave);
     cleanups.push(() => {
       stage.removeEventListener('pointermove', onMove);
       stage.removeEventListener('pointerdown', onDown);
       window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onCancel);
       stage.removeEventListener('pointerleave', onLeave);
     });
 
     const go = (i: number) => {
       const idx = clamp(i, 0, list.length - 1);
-      const sTarget = S0 + idx * STEP_S - 5.5;
-      scrollToY(sectionTop() + clamp(sTarget / S_CAM_END, 0, 1) * totalScroll());
+      scrollToY(sectionTop() + clamp((S0 + idx * STEP_S - 5.5) / END, 0, 1) * totalScroll());
     };
     api.current = {
       go,
@@ -664,15 +856,17 @@ export default function GalleryWalk({ projects, openId, onOpen, toggle }: Props)
         flyIdx = i;
         flyTarget = 1;
         hoverIdx = -1;
+        wake();
       },
       release: () => {
         flyTarget = 0;
+        target = readTarget();
+        wake();
       },
     };
 
     const onKey = (e: KeyboardEvent) => {
-      if (detailRef.current !== null) return; // the panel handles its own keys
-      if (!visible) return;
+      if (detailRef.current !== null || !visible) return;
       const r = section.getBoundingClientRect();
       if (r.top > window.innerHeight * 0.5 || r.bottom < window.innerHeight * 0.5) return;
       if (e.key === 'ArrowRight') go(activeIdx + 1);
@@ -681,63 +875,82 @@ export default function GalleryWalk({ projects, openId, onOpen, toggle }: Props)
     window.addEventListener('keydown', onKey);
     cleanups.push(() => window.removeEventListener('keydown', onKey));
 
-    /** a wider lens while reading a frame lets the frame stay small inside the narrow tunnel */
-    const readFov = () => (aspect < 0.9 ? 100 : Math.max(baseFov, 80));
+    /** a wider lens while reading lets the frame stay small inside the narrow tunnel */
+    const readFov = () => (portrait ? 100 : Math.max(baseFov, 80));
 
     /** where the camera sits to face frame i head-on (frame parked left of centre / near the top) */
-    const facePose = (i: number, outPos: THREE.Vector3, outTgt: THREE.Vector3) => {
+    const facePose = (i: number, outPos: Vector3, outTgt: Vector3) => {
       const c = artCards()[i];
       const phi = -c.s / RP;
       pt(c.s, c.side * HANG, CARD_Y, pc);
-      // normal pointing from the wall into the tunnel
-      nrm.set(Math.sin(phi), 0, -Math.cos(phi)).multiplyScalar(-c.side);
-      const portrait = aspect < 0.9;
-      const tanH = Math.tan(THREE.MathUtils.degToRad(readFov() / 2));
+      nrm.set(Math.sin(phi), 0, -Math.cos(phi)).multiplyScalar(-c.side); // wall → tunnel
+      const tanH = Math.tan(MathUtils.degToRad(readFov() / 2));
       const fitH = CARD_H / (2 * (portrait ? 0.3 : 0.6) * tanH);
       const fitW = c.w / (2 * (portrait ? 0.84 : 0.4) * tanH * aspect);
       const D = Math.min(2 * W - 1.0, Math.max(fitH, fitW));
-      rgt.crossVectors(nrm.clone().negate(), UP).normalize(); // screen-right while facing the wall
+      rgt.crossVectors(nrm.clone().negate(), UP).normalize();
       outTgt.copy(pc);
       outPos.copy(pc).addScaledVector(nrm, D);
       if (portrait) {
-        const dy = -0.4 * tanH * D; // card in the upper part of the screen
-        outPos.y += dy;
+        const dy = -0.42 * tanH * D; // frame sits in the upper part; the sheet takes the rest
+        outPos.y += dy * 0.4; // stay above the floor; the rest of the offset is a slight downward tilt
         outTgt.y += dy;
       } else {
-        const shift = 0.46 * tanH * aspect * D; // card left of centre
+        const shift = 0.46 * tanH * aspect * D;
         outPos.addScaledVector(rgt, shift);
         outTgt.addScaledVector(rgt, shift);
       }
     };
 
-    /* ───────── render loop ───────── */
+    /* ───────── render loop (renders only while something is changing) ───────── */
     const tick = (now: number) => {
       raf = requestAnimationFrame(tick);
       const dt = Math.min(0.05, (now - lastT) / 1000);
       lastT = now;
-      if (!visible || cards.length === 0) return;
+      if (!visible || !built || document.hidden) return;
 
-      // scroll → distance walked (smoothed → inertia)
-      const rect = section.getBoundingClientRect();
-      if (flyTarget === 0) target = clamp(-rect.top / totalScroll(), 0, 1);
+      let busy = dirty;
+      dirty = false;
+
+      if (pickPending && flyTarget === 0 && !touchMode) {
+        pickPending = false;
+        hoverIdx = down && dragged ? -1 : pick(px, py);
+        const h = hoverIdx >= 0;
+        if (h !== hoverState) {
+          hoverState = h;
+          setHovering(h);
+        }
+        busy = true;
+      }
+
+      // distance walked: eased towards the scroll position (inertia)
       const prev = cur;
-      if (flyTarget === 0) cur += (target - cur) * (reduce ? 1 : 1 - Math.exp(-dt * 5.5));
-      const speed = ((cur - prev) * S_CAM_END * 7.5) / Math.max(dt * 60, 0.5);
+      if (flyTarget === 0) {
+        const diff = target - cur;
+        if (Math.abs(diff) > 0.00002) {
+          cur += reduce ? diff : diff * (1 - Math.exp(-dt * 5.5));
+          busy = true;
+        } else cur = target;
+      }
+      const speed = ((cur - prev) * END * 7.5) / Math.max(dt * 60, 0.5);
       vel += ((reduce ? 0 : speed) - vel) * (1 - Math.exp(-dt * 8));
+      if (Math.abs(vel) < 0.004) vel = 0;
+      else busy = true;
       U.vel.value = clamp(vel, -1.4, 1.4);
 
-      // intro
-      if (introStarted && intro < 1) intro = reduce ? 1 : Math.min(1, intro + dt / 1.8);
-      cards.forEach((c, i) => {
-        const s = clamp(intro * (1 + cards.length * 0.12) - i * 0.12, 0, 1);
-        const eased = 1 - Math.pow(1 - s, 3);
-        c.shows.forEach((u) => (u.value = eased));
-      });
+      if (introStarted && intro < 1) {
+        intro = reduce ? 1 : Math.min(1, intro + dt / 1.8);
+        cards.forEach((c, i) => {
+          const s = clamp(intro * (1 + cards.length * 0.12) - i * 0.12, 0, 1);
+          const eased = 1 - Math.pow(1 - s, 3);
+          c.shows.forEach((u) => (u.value = eased));
+        });
+        busy = true;
+      }
 
       // walking camera
-      const sCam = cur * S_CAM_END;
+      const sCam = cur * END;
       const walk = clamp(Math.abs(vel) * 0.8, 0, 1);
-      // drift gently towards the wall of the next frame so it feels like a visitor, not a rail
       let nextSide = 0;
       for (const c of cards) {
         if (c.s > sCam + 1.5) {
@@ -745,14 +958,22 @@ export default function GalleryWalk({ projects, openId, onOpen, toggle }: Props)
           break;
         }
       }
-      lean += (nextSide * 1.1 - lean) * (1 - Math.exp(-dt * 1.2));
-      yawU += (nextSide * W * 0.85 - yawU) * (1 - Math.exp(-dt * 1.3));
+      const leanT = nextSide * (portrait ? 1.5 : 1.1);
+      const yawT = nextSide * (portrait ? HANG * 0.95 : W * 0.85);
+      if (Math.abs(leanT - lean) > 0.003 || Math.abs(yawT - yawU) > 0.003) {
+        lean += (leanT - lean) * (1 - Math.exp(-dt * 1.2));
+        yawU += (yawT - yawU) * (1 - Math.exp(-dt * 1.3));
+        busy = true;
+      }
       pt(sCam, lean + Math.sin(sCam * 0.55) * 0.18 * walk, CAM_Y + Math.sin(sCam * 2.1) * 0.035 * walk, camPos);
-      pt(sCam + LOOK_AHEAD, yawU, TGT_Y, camTgt);
+      pt(sCam + (portrait ? 6.5 : 9.5), yawU, TGT_Y, camTgt);
 
       // turn to face a frame
-      flyV += (flyTarget - flyV) * (1 - Math.exp(-dt * (flyTarget ? 2.6 : 3.4)));
-      if (Math.abs(flyV - flyTarget) < 0.002) flyV = flyTarget;
+      if (flyV !== flyTarget) {
+        flyV += (flyTarget - flyV) * (1 - Math.exp(-dt * (flyTarget ? 2.6 : 3.4)));
+        if (Math.abs(flyV - flyTarget) < 0.002) flyV = flyTarget;
+        busy = true;
+      }
       const e = easeInOut(clamp(flyV, 0, 1));
       if (flyIdx >= 0 && flyV > 0) {
         facePose(flyIdx, wantPos, wantTgt);
@@ -762,14 +983,22 @@ export default function GalleryWalk({ projects, openId, onOpen, toggle }: Props)
           flyReady = true;
         } else {
           const k = 1 - Math.exp(-dt * 3.2);
+          if (flyPos.distanceToSquared(wantPos) > 1e-5 || flyTgt.distanceToSquared(wantTgt) > 1e-5) busy = true;
           flyPos.lerp(wantPos, k);
           flyTgt.lerp(wantTgt, k);
         }
         camPos.lerp(flyPos, e);
         camTgt.lerp(flyTgt, e);
-      } else {
-        flyReady = false;
-      }
+        // never let a long glide cut through the tunnel wall
+        const rr = Math.hypot(camPos.x, camPos.z);
+        const lim = W - 0.45;
+        if (Math.abs(rr - RP) > lim) {
+          const k = (RP + Math.sign(rr - RP) * lim) / rr;
+          camPos.x *= k;
+          camPos.z *= k;
+        }
+      } else flyReady = false;
+
       const wantFov = baseFov + (readFov() - baseFov) * e;
       if (Math.abs(camera.fov - wantFov) > 0.01) {
         camera.fov = wantFov;
@@ -795,16 +1024,45 @@ export default function GalleryWalk({ projects, openId, onOpen, toggle }: Props)
       }
 
       // hover + fades (everything but the chosen frame melts away while reading)
-      cards.forEach((c) => {
+      for (const c of cards) {
         const ai = c.art ? ac.indexOf(c) : -1;
-        c.hover += ((hoverIdx === ai && ai >= 0 ? 1 : 0) - c.hover) * (1 - Math.exp(-dt * 10));
-        c.hovers.forEach((u) => (u.value = c.hover));
+        const th = hoverIdx === ai && ai >= 0 ? 1 : 0;
+        if (Math.abs(th - c.hover) > 0.004) {
+          c.hover += (th - c.hover) * (1 - Math.exp(-dt * 10));
+          c.hovers.forEach((u) => (u.value = c.hover));
+          busy = true;
+        }
         const tf = flyIdx >= 0 && e > 0 ? (ai === flyIdx ? 1 : 1 - e * 0.94) : 1;
-        c.fade += (tf - c.fade) * (1 - Math.exp(-dt * 6));
-        c.fades.forEach((u, k) => (u.value = ai === flyIdx && k === 2 ? c.fade * (1 - e) : c.fade));
-      });
+        if (Math.abs(tf - c.fade) > 0.004) {
+          c.fade += (tf - c.fade) * (1 - Math.exp(-dt * 6));
+          c.fades.forEach((u, k) => (u.value = ai === flyIdx && k === c.fades.length - 1 ? c.fade * (1 - e) : c.fade));
+          busy = true;
+        }
+      }
+
+      if (!busy) {
+        if (++idle > 2) return; // nothing changed → skip the GPU entirely
+      } else idle = 0;
 
       renderer.render(scene, camera);
+
+      // step quality down once if frames are consistently slow
+      if (busy && dt > 0) {
+        acc += dt;
+        if (++frames >= 40) {
+          const avg = acc / frames;
+          frames = 0;
+          acc = 0;
+          if (avg > 0.034) {
+            slow++;
+            if (slow === 1 && pr > 1) {
+              pr = 1;
+              renderer.setPixelRatio(1);
+              resize();
+            } else if (slow >= 2) glowMeshes.forEach((m) => (m.visible = false));
+          } else slow = Math.max(0, slow - 0);
+        }
+      }
     };
     raf = requestAnimationFrame(tick);
 
@@ -822,7 +1080,7 @@ export default function GalleryWalk({ projects, openId, onOpen, toggle }: Props)
   useEffect(() => {
     const onScroll = () => {
       const r = sectionRef.current?.getBoundingClientRect();
-      if (r && r.top < -80) setMoved(true);
+      if (r && r.top < -60) setMoved(true);
     };
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
@@ -832,7 +1090,7 @@ export default function GalleryWalk({ projects, openId, onOpen, toggle }: Props)
   useEffect(() => {
     if (detail === null) return;
     const onKey = (e: KeyboardEvent) => {
-      if (openId !== null) return; // the full case study is on top
+      if (openId !== null) return;
       if (e.key === 'Escape') closeDetail();
       if (e.key === 'ArrowRight' && detail < N - 1) showDetail(detail + 1);
       if (e.key === 'ArrowLeft' && detail > 0) showDetail(detail - 1);
@@ -843,303 +1101,134 @@ export default function GalleryWalk({ projects, openId, onOpen, toggle }: Props)
 
   const current = projects[active] ?? projects[0];
   const reading = detail !== null;
-  const shown = detail !== null ? projects[detail] : null;
 
   return (
     <section
       ref={sectionRef}
-      className="relative bg-[#fbfbfa] text-[#111]"
-      style={{ height: `${100 + S_CAM_END * VH_PER_UNIT}vh` }}
+      className="relative bg-bg text-fg"
+      style={{ height: `${heightSvh(N, mobile)}svh` }}
       aria-label="Project gallery"
     >
-      <div ref={stageRef} className="sticky top-0 h-screen w-full select-none overflow-hidden" style={{ touchAction: 'pan-y' }}>
+      <div ref={stageRef} className="sticky top-0 h-[100svh] w-full select-none overflow-hidden" style={{ touchAction: 'pan-y' }}>
         <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" aria-hidden />
 
+        {/* loading veil */}
         <div
-          className={`pointer-events-none absolute inset-0 bg-[#fbfbfa] transition-opacity duration-700 ${ready ? 'opacity-0' : 'opacity-100'}`}
-        />
+          className={`pointer-events-none absolute inset-0 flex items-center justify-center bg-bg font-mono text-[11px] uppercase tracking-widest text-muted transition-opacity duration-700 ${ready ? 'opacity-0' : 'opacity-100'}`}
+        >
+          <span>
+            loading work<span className="animate-blink text-accent">_</span>
+          </span>
+        </div>
 
         {/* top bar */}
-        <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-between px-5 pt-24 md:px-10 md:pt-8">
-          <div className="font-mono text-[10px] uppercase leading-relaxed tracking-[0.3em] text-black/45">
-            {reading ? (
-              <button
-                type="button"
-                onClick={closeDetail}
-                className="pointer-events-auto flex items-center gap-2 whitespace-nowrap rounded-full bg-white/85 px-3.5 py-2 text-black backdrop-blur transition-opacity hover:opacity-60"
-              >
-                <ArrowLeft size={12} /> Back to the gallery
-              </button>
-            ) : (
-              <>
-                <div>Selected work</div>
-                <div className="text-black/30">The gallery — {new Date().getFullYear()}</div>
-                <div
-                  className={`mt-3 hidden text-black/35 transition-opacity duration-500 md:block ${moved ? 'opacity-0' : 'opacity-100'}`}
-                >
-                  Scroll or drag to walk forward
-                  <br />
-                  Click a frame to look closer
-                </div>
-              </>
-            )}
-          </div>
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-between px-4 pt-5 md:px-10 md:pt-8">
+          {reading ? (
+            <button
+              type="button"
+              onClick={closeDetail}
+              className="hover-target pointer-events-auto flex min-h-10 items-center gap-2 border border-border bg-bg/80 px-3.5 font-mono text-[11px] uppercase tracking-widest text-fg active:bg-accent active:text-bg"
+            >
+              <ArrowLeft size={13} /> back
+            </button>
+          ) : (
+            <div className="font-mono text-[11px] uppercase leading-relaxed tracking-widest text-accent">
+              <div>{"// work"}</div>
+              <div className="text-muted">~/projects · {pad(N)}</div>
+            </div>
+          )}
           <div className="pointer-events-auto">{toggle}</div>
         </div>
 
-        {/* walking chrome (hidden while reading a frame) */}
-        <div className={`transition-opacity duration-500 ${reading ? 'pointer-events-none opacity-0' : 'opacity-100'}`}>
-          <div className="pointer-events-none absolute bottom-6 left-5 z-10 font-mono text-[10px] uppercase tracking-[0.3em] text-black/45 md:bottom-8 md:left-10">
-            <span className="text-black">{pad(active + 1)}</span> / {pad(N)}
-            <div className="mt-2 h-px w-24 bg-black/10">
-              <div className="h-px bg-black transition-all duration-500" style={{ width: `${((active + 1) / N) * 100}%` }} />
+        {/* progress rail (desktop) */}
+        <nav
+          aria-label="Projects"
+          className={`absolute left-5 top-1/2 z-10 hidden -translate-y-1/2 flex-col gap-3 transition-opacity duration-500 md:flex ${reading ? 'pointer-events-none opacity-0' : 'opacity-100'}`}
+        >
+          {projects.map((p, i) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => api.current?.go(i)}
+              aria-label={p.title}
+              className="hover-target group flex items-center gap-3 py-1"
+            >
+              <span className={`h-px transition-all duration-300 ${i === active ? 'w-9 bg-accent' : 'w-4 bg-border group-hover:w-7 group-hover:bg-muted'}`} />
+              <span className="font-mono text-[10px] text-accent opacity-0 transition-opacity group-hover:opacity-100">{pad(i + 1)}</span>
+            </button>
+          ))}
+        </nav>
+
+        {/* walking controls — sit above the site's bottom dock */}
+        <div
+          className={`absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-bg via-bg/70 to-transparent px-3 pb-[6.25rem] pt-20 transition-opacity duration-500 md:px-10 md:pb-24 ${reading ? 'pointer-events-none opacity-0' : 'opacity-100'}`}
+        >
+          {!moved && (
+            <div className="pointer-events-none mb-3 flex justify-center font-mono text-[10px] uppercase tracking-widest text-accent">
+              <span className="animate-pulse">{mobile ? 'swipe up to walk' : 'scroll to walk'} ↓</span>
             </div>
-          </div>
-
-          <div className="pointer-events-none absolute inset-x-0 bottom-6 z-10 flex flex-col items-center px-6 text-center md:bottom-8">
-            <div className="font-mono text-[9px] uppercase tracking-[0.35em] text-black/40">You are walking past</div>
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={current?.id}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.45, ease: EASE }}
-                className="mt-2 flex flex-col items-center"
-              >
-                <h3 className="font-sans text-2xl font-extrabold uppercase leading-none tracking-tight text-black md:text-3xl">
-                  {current?.title}
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => showDetail(active)}
-                  className="pointer-events-auto mt-3 font-mono text-[10px] uppercase tracking-[0.3em] text-black/55 transition-colors hover:text-black"
-                >
-                  Enter the project →
-                </button>
-              </motion.div>
-            </AnimatePresence>
-          </div>
-
-          <div className="absolute bottom-6 right-5 z-10 flex gap-2 md:bottom-8 md:right-10">
+          )}
+          <div className="mx-auto flex max-w-3xl items-end justify-between gap-3">
             <button
               type="button"
               aria-label="Previous project"
               onClick={() => api.current?.go(active - 1)}
               disabled={active === 0}
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-black/15 bg-white/70 text-black backdrop-blur transition-colors hover:bg-black hover:text-white disabled:opacity-30"
+              className="hover-target flex h-11 w-11 shrink-0 items-center justify-center border border-border bg-bg/70 text-fg transition-colors active:bg-accent active:text-bg disabled:opacity-25 md:hover:border-accent md:hover:text-accent"
             >
-              <ArrowLeft size={14} />
+              <ArrowLeft size={16} />
             </button>
+
+            <div key={current?.id} className="min-w-0 flex-1 animate-[capIn_0.45s_cubic-bezier(0.16,1,0.3,1)] text-center" aria-live="polite">
+              <div className="font-mono text-[11px] uppercase tracking-widest text-accent">
+                {pad(active + 1)} / {pad(N)} {"//"} {current?.year}
+              </div>
+              <h3 className="mt-1 truncate font-display text-2xl font-bold uppercase leading-none tracking-tighter text-fg md:text-4xl">
+                {current?.title}
+              </h3>
+              <button
+                type="button"
+                onClick={() => showDetail(active)}
+                className="hover-target mt-3 inline-flex min-h-11 items-center gap-2 bg-accent px-5 font-mono text-[11px] font-bold uppercase tracking-widest text-bg active:opacity-70"
+              >
+                open project <ArrowUpRight size={14} />
+              </button>
+            </div>
+
             <button
               type="button"
               aria-label="Next project"
               onClick={() => api.current?.go(active + 1)}
               disabled={active === N - 1}
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-black/15 bg-white/70 text-black backdrop-blur transition-colors hover:bg-black hover:text-white disabled:opacity-30"
+              className="hover-target flex h-11 w-11 shrink-0 items-center justify-center border border-border bg-bg/70 text-fg transition-colors active:bg-accent active:text-bg disabled:opacity-25 md:hover:border-accent md:hover:text-accent"
             >
-              <ArrowRight size={14} />
+              <ArrowRight size={16} />
             </button>
           </div>
         </div>
 
         {/* details on the wall */}
         <AnimatePresence>
-          {shown && detail !== null && (
-            <DetailPanel
-              key="panel"
+          {detail !== null && (
+            <GalleryDetail
+              key="detail"
               projects={projects}
               index={detail}
               onSelect={showDetail}
-              onCase={() => onOpen(shown.id)}
+              onCase={() => onOpen(projects[detail].id)}
+              onClose={closeDetail}
             />
           )}
         </AnimatePresence>
 
-        {/* cursor pill */}
+        {/* cursor label (desktop) */}
         <div
           ref={pillRef}
-          className={`pointer-events-none fixed left-0 top-0 z-[70] hidden whitespace-nowrap rounded-full bg-black px-3 py-1.5 font-mono text-[9px] uppercase tracking-[0.25em] text-white transition-opacity duration-200 md:block ${hovering ? 'opacity-100' : 'opacity-0'}`}
+          className={`pointer-events-none fixed left-0 top-0 z-[70] hidden whitespace-nowrap bg-accent px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-widest text-bg transition-opacity duration-150 md:block ${hovering ? 'opacity-100' : 'opacity-0'}`}
         >
-          Open the project
+          open ↵
         </div>
       </div>
     </section>
-  );
-}
-
-/* ───────────────────────── details panel ───────────────────────── */
-function DetailPanel({
-  projects,
-  index,
-  onSelect,
-  onCase,
-}: {
-  projects: Project[];
-  index: number;
-  onSelect: (i: number) => void;
-  onCase: () => void;
-}) {
-  const p = projects[index];
-  const rows: { name: string; body: React.ReactNode }[] = [
-    { name: 'Overview', body: <p>{p.overview}</p> },
-    { name: 'The problem', body: <p>{p.problem}</p> },
-    { name: 'The solution', body: <p>{p.solution}</p> },
-    {
-      name: 'Key features',
-      body: (
-        <ul className="space-y-3">
-          {p.features.map((f) => (
-            <li key={f.title}>
-              <span className="font-medium text-black">{f.title}.</span> {f.desc}
-            </li>
-          ))}
-        </ul>
-      ),
-    },
-  ];
-  if (p.challenges?.length) {
-    rows.push({
-      name: 'Challenges',
-      body: (
-        <ul className="space-y-3">
-          {p.challenges.map((c) => (
-            <li key={c.challenge}>
-              <span className="font-medium text-black">{c.challenge}</span> {c.solution}
-            </li>
-          ))}
-        </ul>
-      ),
-    });
-  }
-
-  return (
-    <motion.aside
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.5, delay: 0.55 }}
-      className="absolute inset-x-0 bottom-0 top-[46%] z-20 overflow-y-auto px-5 pb-10 pt-2 md:inset-y-0 md:left-[50%] md:right-0 md:top-0 md:px-0 md:pb-12 md:pl-6 md:pr-12 md:pt-28"
-      style={{ overscrollBehavior: 'contain' }}
-      data-lenis-prevent
-    >
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={p.id}
-          initial={{ opacity: 0, y: 18 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          transition={{ duration: 0.5, ease: EASE }}
-          className="max-w-xl"
-        >
-          <div className="font-mono text-[10px] uppercase tracking-[0.3em] text-black/40">
-            {pad(index + 1)} / {pad(projects.length)} · {p.year} · {p.status}
-          </div>
-          <h2 className="mt-3 font-serif text-4xl leading-none text-black md:text-5xl">{p.title}</h2>
-          <p className="mt-2 font-serif text-xl italic text-black/55">{p.category}</p>
-          <p className="mt-5 text-[15px] leading-relaxed text-black/65">{p.description}</p>
-
-          <dl className="mt-6 grid grid-cols-[6rem_1fr] gap-y-2 font-mono text-[11px] uppercase tracking-[0.2em]">
-            <dt className="text-black/35">Role</dt>
-            <dd className="text-black">{p.role}</dd>
-            <dt className="text-black/35">Type</dt>
-            <dd className="text-black">{p.type}</dd>
-          </dl>
-
-          <div className="mt-5 flex flex-wrap gap-2">
-            {p.tags.map((t) => (
-              <span
-                key={t}
-                className="rounded-sm border border-black/15 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.2em] text-black/70"
-              >
-                {t}
-              </span>
-            ))}
-          </div>
-
-          <div className="mt-7 flex flex-wrap gap-3">
-            <a
-              href={p.link}
-              target="_blank"
-              rel="noreferrer"
-              className="flex flex-1 items-center justify-center gap-2 bg-black px-6 py-3.5 font-mono text-[11px] uppercase tracking-[0.3em] text-white transition-opacity hover:opacity-80 sm:flex-none"
-            >
-              Live site <ArrowUpRight size={14} />
-            </a>
-            <a
-              href={p.github}
-              target="_blank"
-              rel="noreferrer"
-              className="flex items-center justify-center gap-2 border border-black/20 px-5 py-3.5 font-mono text-[11px] uppercase tracking-[0.3em] text-black transition-colors hover:bg-black hover:text-white"
-            >
-              <Github size={14} /> Code
-            </a>
-            <button
-              type="button"
-              onClick={onCase}
-              className="flex items-center justify-center gap-2 border border-black/20 px-5 py-3.5 font-mono text-[11px] uppercase tracking-[0.3em] text-black transition-colors hover:bg-black hover:text-white"
-            >
-              Full case study
-            </button>
-          </div>
-
-          <Accordion rows={rows} />
-
-          <div className="mt-10">
-            <div className="font-mono text-[10px] uppercase tracking-[0.3em] text-black/40">Get the collection</div>
-            <div className="mt-3 flex gap-3 overflow-x-auto pb-2" data-lenis-prevent>
-              {projects.map((q, i) => (
-                <button
-                  key={q.id}
-                  type="button"
-                  onClick={() => i !== index && onSelect(i)}
-                  aria-label={q.title}
-                  className={`relative h-16 w-24 shrink-0 overflow-hidden border transition-all duration-300 ${i === index ? 'border-black' : 'border-black/10 opacity-60 hover:opacity-100'}`}
-                >
-                  <Image src={q.image} alt="" fill sizes="96px" className="object-cover object-top" />
-                </button>
-              ))}
-            </div>
-          </div>
-        </motion.div>
-      </AnimatePresence>
-    </motion.aside>
-  );
-}
-
-function Accordion({ rows }: { rows: { name: string; body: React.ReactNode }[] }) {
-  const [section, setSection] = useState<string | null>('Overview');
-  return (
-    <div className="mt-8 border-t border-black/10">
-      {rows.map((r) => {
-        const open = section === r.name;
-        return (
-          <div key={r.name} className="border-b border-black/10">
-            <button
-              type="button"
-              onClick={() => setSection(open ? null : r.name)}
-              className="flex w-full items-center justify-between py-3.5 text-left font-mono text-[11px] uppercase tracking-[0.25em] text-black"
-              aria-expanded={open}
-            >
-              {r.name}
-              <Plus size={14} className={`transition-transform duration-300 ${open ? 'rotate-45' : ''}`} />
-            </button>
-            <AnimatePresence initial={false}>
-              {open && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.35, ease: EASE }}
-                  className="overflow-hidden"
-                >
-                  <div className="pb-5 text-sm leading-relaxed text-black/60">{r.body}</div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        );
-      })}
-    </div>
   );
 }
