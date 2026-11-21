@@ -10,6 +10,7 @@ import Skills from '@/components/Skills';
 import TechSkills from '@/components/TechSkills';
 import Experience from '@/components/Experience';
 import Projects from '@/components/Projects';
+import ProjectsGallery from '@/components/ProjectsGallery';
 import Contact from '@/components/Contact';
 import ChatAssistant from '@/components/ChatAssistant';
 import BootSequence from '@/components/BootSequence';
@@ -37,6 +38,7 @@ export default function Home() {
         <div id="about"><About /></div>
         <div id="experience"><Experience /></div>
         <div id="work"><Projects /></div>
+        <div id="gallery"><ProjectsGallery /></div>
         <div id="skills"><TechSkills /></div>
         {/* <div id="skills"><Skills /></div> */}
         <div id="contact"><Contact /></div>
