@@ -180,15 +180,7 @@ export default function ProjectsGallery() {
     <div ref={rootRef}>
       {mode === 'gallery' ? (
         <GalleryWalk
-          projects={projects.map(({ id, title, category, image, year, tags, tagline }) => ({
-            id,
-            title,
-            category,
-            image,
-            year,
-            tags,
-            tagline,
-          }))}
+          projects={projects}
           openId={selectedId}
           onOpen={open}
           toggle={toggle}
