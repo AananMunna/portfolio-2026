@@ -3,31 +3,6 @@
 import { motion } from "motion/react";
 import { useState } from "react";
 
-type Level = "Expert" | "Advanced" | "Intermediate";
-
-const LEVEL_WIDTH: Record<Level, string> = {
-  Expert: "w-full",
-  Advanced: "w-3/4",
-  Intermediate: "w-1/2",
-};
-
-const LEVEL_TEXT: Record<Level, string> = {
-  Expert: "text-accent",
-  Advanced: "text-cyan-300",
-  Intermediate: "text-fg/50",
-};
-
-const LEVEL_BAR: Record<Level, string> = {
-  Expert: "bg-accent",
-  Advanced: "bg-cyan-300",
-  Intermediate: "bg-white/40",
-};
-
-/**
- * Levels for items that also appeared in the old bonsai section come from the same
- * numbers (90+ Expert, 80–89 Advanced). Lines marked `// review` were not in the
- * bonsai: set them to your honest level.
- */
 const currentStack = [
   "TypeScript",
   "React",
@@ -44,69 +19,69 @@ const currentStack = [
   "GitHub Actions",
 ];
 
-const groups: { title: string; items: { name: string; level: Level }[] }[] = [
+const groups: { title: string; items: string[] }[] = [
   {
     title: "Languages",
     items: [
-      { name: "TypeScript", level: "Advanced" },
-      { name: "JavaScript ES6+", level: "Expert" },
+      "TypeScript",
+      "JavaScript ES6+",
     ],
   },
   {
     title: "Frontend Systems",
     items: [
-      { name: "React", level: "Expert" },
-      { name: "Next.js", level: "Expert" },
-      { name: "Tailwind CSS", level: "Expert" },
-      { name: "Redux", level: "Advanced" },
-      { name: "Framer Motion", level: "Advanced" },
+      "React",
+      "Next.js",
+      "Tailwind CSS",
+      "Redux",
+      "Framer Motion",
     ],
   },
   {
     title: "Backend Services",
     items: [
-      { name: "Node.js", level: "Advanced" },
-      { name: "Express.js", level: "Advanced" },
-      { name: "REST API Design", level: "Advanced" },
+      "Node.js",
+      "Express.js",
+      "REST API Design",
     ],
   },
   {
     title: "Databases & ORMs",
     items: [
-      { name: "MongoDB", level: "Advanced" },
-      { name: "PostgreSQL", level: "Intermediate" }, // review
-      { name: "Prisma ORM", level: "Intermediate" }, // review
-      { name: "Redis", level: "Intermediate" }, // review
+      "MongoDB",
+      "PostgreSQL",
+      "Prisma ORM",
+      "Redis",
     ],
   },
   {
     title: "Security & Access",
     items: [
-      { name: "JWT", level: "Advanced" },
-      { name: "Role-based Access", level: "Advanced" },
+      "JWT",
+      "Role-based Access",
     ],
   },
   {
     title: "Payments",
     items: [
-      { name: "Stripe", level: "Intermediate" }, // review
-      { name: "bKash", level: "Intermediate" }, // review
+      "Stripe",
+      "bKash",
     ],
   },
   {
     title: "DevOps & Deployment",
     items: [
-      { name: "Vercel", level: "Advanced" },
-      { name: "Netlify", level: "Advanced" },
-      { name: "CI/CD Pipelines", level: "Advanced" },
+      "Vercel",
+      "Netlify",
+      "CI/CD Pipelines",
     ],
   },
   {
     title: "Tooling & Workflow",
     items: [
-      { name: "Git", level: "Expert" },
-      { name: "GitHub Actions", level: "Advanced" },
-      { name: "Figma", level: "Intermediate" },
+      "Git",
+      "GitHub Actions",
+      "Figma",
     ],
   },
 ];
@@ -231,18 +206,13 @@ export default function StackMatrix() {
               <h3 className="mb-4 font-mono text-xs uppercase tracking-widest text-accent">
                 {group.title}
               </h3>
-              <ul className="space-y-3">
+              <ul className="flex flex-wrap gap-2">
                 {group.items.map((item) => (
-                  <li key={item.name}>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-fg/85">{item.name}</span>
-                      <span className={`font-mono text-[10px] uppercase tracking-wider ${LEVEL_TEXT[item.level]}`}>
-                        {item.level}
-                      </span>
-                    </div>
-                    <div className="mt-1.5 h-[3px] w-full rounded-full bg-white/10">
-                      <div className={`h-full rounded-full ${LEVEL_WIDTH[item.level]} ${LEVEL_BAR[item.level]}`} />
-                    </div>
+                  <li
+                    key={item}
+                    className="rounded-full border border-white/10 px-3 py-1 text-sm text-fg/80"
+                  >
+                    {item}
                   </li>
                 ))}
               </ul>
