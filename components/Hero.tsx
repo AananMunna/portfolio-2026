@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, useMotionValue, useSpring, useTransform } from "motion/react";
+import { AnimatePresence, motion, useMotionValue, useSpring, useTransform } from "motion/react";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Github, Linkedin, Instagram, Facebook, Twitter, Mail, ArrowUpRight } from "lucide-react";
@@ -8,8 +8,59 @@ import { Github, Linkedin, Instagram, Facebook, Twitter, Mail, ArrowUpRight } fr
 const PHOTO_SRC =
   "https://res.cloudinary.com/dtiotqi9q/image/upload/v1790229722/ChatGPT_Image_Sep_24_2026_12_01_47_PM_hl5xrw.png";
 
+// One small flow (clicking "Order"), shown as the code that handles it in each layer.
+// These are illustrative snippets. Swap in real code from one of your projects if you can.
+const layers = [
+  {
+    word: "front end",
+    file: "components/OrderButton.tsx",
+    note: "A click becomes a request.",
+    code: `export function OrderButton({ id }: { id: number }) {
+  const [busy, setBusy] = useState(false);
+
+  async function order() {
+    setBusy(true);
+    await fetch("/api/orders", {
+      method: "POST",
+      body: JSON.stringify({ id }),
+    });
+    setBusy(false);
+  }
+
+  return <button disabled={busy} onClick={order}>Order</button>;
+}`,
+  },
+  {
+    word: "back end",
+    file: "app/api/orders/route.ts",
+    note: "The request becomes a query.",
+    code: `export async function POST(req: Request) {
+  const { id } = await req.json();
+
+  const { rows } = await db.query(
+    "insert into orders (item_id) values ($1) returning id",
+    [id]
+  );
+
+  return Response.json({ order: rows[0] }, { status: 201 });
+}`,
+  },
+  {
+    word: "database",
+    file: "db/schema.sql",
+    note: "The query becomes a row.",
+    code: `create table orders (
+  id         serial primary key,
+  item_id    int not null references items(id),
+  created_at timestamptz not null default now()
+);
+
+create index on orders (created_at desc);`,
+  },
+];
+
 const socials = [
-  { name: "Email", icon: Mail, href: "mailto:aananmunna420@gmail.com" },
+  // { name: "Email", icon: Mail, href: "mailto:aananmunna420@gmail.com" },
   { name: "GitHub", icon: Github, href: "https://github.com/AananMunna" },
   { name: "LinkedIn", icon: Linkedin, href: "https://www.linkedin.com/in/aanan-munna/" },
   { name: "Twitter", icon: Twitter, href: "https://x.com/aanan_munna" },
@@ -28,10 +79,24 @@ const socials = [
 
 export default function Hero() {
   const [reduce, setReduce] = useState(false);
+  const [active, setActive] = useState(0);
+  const [touched, setTouched] = useState(false); // once someone interacts, autoplay stops
 
   useEffect(() => {
     setReduce(window.matchMedia("(prefers-reduced-motion: reduce)").matches);
   }, []);
+
+  // Gentle autoplay through the three layers until the visitor takes over.
+  useEffect(() => {
+    if (reduce || touched) return;
+    const id = window.setInterval(() => setActive((a) => (a + 1) % layers.length), 5000);
+    return () => window.clearInterval(id);
+  }, [reduce, touched]);
+
+  const pick = (i: number) => {
+    setTouched(true);
+    setActive(i);
+  };
 
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
@@ -57,6 +122,25 @@ export default function Hero() {
     transition: { duration: 0.8, delay, ease: [0.16, 1, 0.3, 1] as const },
   });
 
+  const current = layers[active];
+
+  // The three headline words double as the controls for the code window.
+  const word = (i: number) => (
+    <button
+      type="button"
+      aria-pressed={active === i}
+      aria-controls="layer-panel"
+      onMouseEnter={() => pick(i)}
+      onFocus={() => pick(i)}
+      onClick={() => pick(i)}
+      className={`hover-target inline cursor-pointer underline decoration-2 underline-offset-[7px] transition-colors duration-300 ${
+        active === i ? "text-accent decoration-accent" : "text-fg decoration-fg/20 hover:decoration-fg/50"
+      }`}
+    >
+      {layers[i].word}
+    </button>
+  );
+
   return (
     <section className="relative bg-bg">
       {/* background layers: clipped on their own so content is never cut off */}
@@ -77,12 +161,12 @@ export default function Hero() {
         />
       </div>
 
-      <div className="relative z-10 mx-auto flex min-h-[100svh] w-full max-w-7xl flex-col-reverse items-center justify-center gap-12 px-5 pb-20 pt-32 sm:px-8 lg:flex-row lg:justify-between lg:gap-16 lg:px-12 lg:pb-24 lg:pt-36">
+      <div className="relative z-10 mx-auto flex min-h-[100svh] w-full max-w-7xl flex-col items-center justify-center gap-14 px-5 pb-20 pt-32 sm:px-8 lg:flex-row lg:justify-between lg:gap-14 lg:px-12 lg:pb-24 lg:pt-36">
         {/* LEFT */}
-        <div className="flex w-full flex-col items-center text-center lg:max-w-[56%] lg:items-start lg:text-left">
+        <div className="flex w-full flex-col items-center text-center lg:max-w-[50%] lg:items-start lg:text-left">
           <motion.div
             {...rise(0.05)}
-            className="inline-flex items-center gap-2 rounded-full border hairline bg-white/[0.04] px-3.5 py-1.5 text-[12.5px] font-medium text-fg/80"
+            className=" hidden items-center gap-2 rounded-full border hairline bg-white/[0.04] px-3.5 py-1.5 text-[12.5px] font-medium text-fg/80"
           >
             <span className="relative flex h-2 w-2">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-60" />
@@ -93,29 +177,42 @@ export default function Hero() {
             <span className="text-muted">Kushtia, Bangladesh</span>
           </motion.div>
 
-          {/* Name: deliberately modest. Role carries the weight. */}
-          <motion.h1
-            {...rise(0.15)}
-            className="mt-6 text-[clamp(1.9rem,4.2vw,3.4rem)] font-semibold uppercase leading-[1.05] tracking-[0.04em] text-fg"
-          >
-            Aanan <span className="text-accent">Munna</span>
-          </motion.h1>
+          {/* Signature: avatar, name, role */}
+          <motion.div {...rise(0.1)} className="flex items-center gap-3.5">
+            <img
+              src={PHOTO_SRC}
+              alt="Aanan Munna"
+              width={48}
+              height={48}
+              className="h-12 w-12 select-none rounded-full border hairline object-cover object-top"
+              draggable={false}
+            />
+            <div className="text-left">
+              <p className="text-[15px] font-medium leading-tight text-fg">Aanan Munna</p>
+              <p className="mt-0.5 font-mono text-[12.5px] font-medium leading-tight text-accent">Full Stack Developer</p>
+            </div>
+          </motion.div>
 
-          <motion.p
-            {...rise(0.25)}
-            className="mt-3 font-mono text-[13px] font-medium uppercase tracking-[0.22em] text-muted sm:text-sm"
+          {/* Headline: the three words are the controls */}
+          <motion.h1
+            {...rise(0.2)}
+            className="mt-7 text-[clamp(2rem,4.4vw,3.4rem)] font-semibold leading-[1.18] tracking-[-0.02em] text-fg"
           >
-            Full Stack Developer
-          </motion.p>
+            I build the {word(0)}, the {word(1)} and the {word(2)}.
+          </motion.h1>
 
           <motion.p
             {...rise(0.35)}
             className="mt-6 max-w-[34rem] text-[15.5px] leading-[1.7] text-muted sm:text-[17px]"
           >
-            I build web apps from the database to the button. Mostly Next.js, Node and Postgres. I learned by shipping real projects, and I care more about things working well than looking clever.
+            Mostly Next.js, Node and Postgres. I learned by shipping real projects, and I care more about things working well than looking clever.
           </motion.p>
 
-          <motion.div {...rise(0.45)} className="mt-8 flex flex-wrap justify-center gap-3 lg:justify-start">
+          {/* <motion.p {...rise(0.4)} className="mt-3 font-mono text-[11.5px] text-muted/80">
+            Hover or tap a word to see that layer.
+          </motion.p> */}
+
+          <motion.div {...rise(0.48)} className="mt-7 flex flex-wrap justify-center gap-3 lg:justify-start">
             <a href="#work" className="hover-target btn-primary">
               View work
             </a>
@@ -125,7 +222,7 @@ export default function Hero() {
           </motion.div>
 
           {/* Socials: real buttons, always fully visible */}
-          <motion.div {...rise(0.55)} className="mt-9 flex flex-wrap items-center justify-center gap-2.5 lg:justify-start">
+          <motion.div {...rise(0.56)} className="mt-9 flex flex-wrap items-center justify-center gap-2.5 lg:justify-start">
             {socials.map((social) => {
               const Icon = social.icon;
               return (
@@ -145,31 +242,61 @@ export default function Hero() {
           </motion.div>
         </div>
 
-        {/* RIGHT: portrait */}
+        {/* RIGHT: code window that follows the headline word */}
         <motion.div
-          initial={reduce ? false : { opacity: 0, scale: 0.95, y: 24 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
+          initial={reduce ? false : { opacity: 0, y: 28 }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.9, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
-          className="relative w-[min(62vw,260px)] shrink-0 sm:w-[260px] lg:w-[min(28vw,340px)]"
+          className="relative w-full max-w-[560px] shrink-0 lg:w-[46%]"
         >
           <div className="absolute -inset-4 -z-10 rounded-[2.2rem] bg-gradient-to-br from-accent/25 via-transparent to-transparent blur-2xl" />
-          <div className="card overflow-hidden !rounded-[1.75rem] p-1.5">
-            <img
-              src={PHOTO_SRC}
-              alt="Aanan Munna, Full Stack Developer"
-              width={640}
-              height={800}
-              className="block h-auto w-full select-none rounded-[1.4rem]"
-              style={{ filter: "contrast(1.03)" }}
-              draggable={false}
-            />
-          </div>
+          <div className="card overflow-hidden !rounded-[1.5rem] p-0">
+            {/* window chrome */}
+            <div className="flex items-center gap-3 border-b hairline px-4 py-3">
+              <span aria-hidden className="flex gap-1.5">
+                <span className="h-2.5 w-2.5 rounded-full bg-fg/15" />
+                <span className="h-2.5 w-2.5 rounded-full bg-fg/15" />
+                <span className="h-2.5 w-2.5 rounded-full bg-fg/15" />
+              </span>
+              <span className="min-w-0 flex-1 truncate font-mono text-[11.5px] text-muted">{current.file}</span>
+            </div>
 
-          {/* floating stack card */}
-          <div className="glass absolute -bottom-5 -left-4 hidden rounded-2xl border hairline px-4 py-3 shadow-xl sm:block lg:-left-10">
-            <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted">Currently building with</p>
-            <p className="mt-1 text-sm font-semibold text-fg">Next.js · Node · Postgres</p>
+            {/* code */}
+            <div id="layer-panel" aria-live="polite" className="min-h-[17rem] overflow-x-auto px-5 py-5 sm:min-h-[18.5rem]">
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.pre
+                  key={current.file}
+                  initial={reduce ? false : { opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={reduce ? undefined : { opacity: 0, y: -6 }}
+                  transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+                  className="font-mono text-[12px] leading-[1.7] text-fg/85 sm:text-[12.5px]"
+                >
+                  <code>{current.code}</code>
+                </motion.pre>
+              </AnimatePresence>
+            </div>
+
+            {/* caption + position dots */}
+            <div className="flex items-center justify-between gap-4 border-t hairline px-5 py-3">
+              <p className="font-mono text-[11.5px] text-muted">
+                <span className="text-accent">0{active + 1}/03</span> · {current.note}
+              </p>
+              <span aria-hidden className="flex gap-1.5">
+                {layers.map((l, i) => (
+                  <span
+                    key={l.word}
+                    className={`h-1.5 rounded-full transition-all duration-300 ${
+                      active === i ? "w-5 bg-accent" : "w-1.5 bg-fg/20"
+                    }`}
+                  />
+                ))}
+              </span>
+            </div>
           </div>
+          {/* <p className="mt-3 text-center font-mono text-[10.5px] text-muted/70 lg:text-left">
+            Illustrative snippets of one flow, through all three layers.
+          </p> */}
         </motion.div>
       </div>
     </section>

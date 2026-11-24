@@ -22,7 +22,11 @@ type NavItem = {
   id: string;
   title: string;
   short: string;
-  icon: React.ComponentType<{ size?: number; strokeWidth?: number; className?: string }>;
+  icon: React.ComponentType<{
+    size?: number;
+    strokeWidth?: number;
+    className?: string;
+  }>;
   /** in-page anchor on the home page */
   target?: string;
   /** separate route */
@@ -31,12 +35,36 @@ type NavItem = {
 
 export const navItems: NavItem[] = [
   { id: "home", title: "Home", short: "Home", icon: Home, target: "body" },
-  { id: "experience", title: "Experience", short: "Work", icon: Briefcase, target: "#experience" },
-  { id: "skills", title: "Stack", short: "Stack", icon: Code2, target: "#skills" },
-  { id: "work", title: "Projects", short: "Projects", icon: FolderGit2, target: "#work" },
+  {
+    id: "experience",
+    title: "Experience",
+    short: "Work",
+    icon: Briefcase,
+    target: "#experience",
+  },
+  {
+    id: "skills",
+    title: "Stack",
+    short: "Stack",
+    icon: Code2,
+    target: "#skills",
+  },
+  {
+    id: "work",
+    title: "Projects",
+    short: "Projects",
+    icon: FolderGit2,
+    target: "#work",
+  },
   { id: "about", title: "About", short: "About", icon: User, target: "#about" },
   { id: "blog", title: "Blog", short: "Blog", icon: BookOpen, route: "/blog" },
-  { id: "contact", title: "Contact", short: "Contact", icon: Mail, route: "/contact" },
+  {
+    id: "contact",
+    title: "Contact",
+    short: "Contact",
+    icon: Mail,
+    route: "/contact",
+  },
 ];
 
 const RESUME =
@@ -132,7 +160,9 @@ export default function Navbar() {
     const ids = ["experience", "skills", "work", "about"];
     const io = new IntersectionObserver(
       (entries) =>
-        entries.forEach((e) => e.isIntersecting && setActiveSection(e.target.id)),
+        entries.forEach(
+          (e) => e.isIntersecting && setActiveSection(e.target.id),
+        ),
       { rootMargin: "-35% 0px -55% 0px", threshold: 0 },
     );
     ids.forEach((id) => {
@@ -211,7 +241,7 @@ export default function Navbar() {
         transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
         className="fixed left-0 top-0 z-50 w-full"
       >
-        <div className="glass border-b hairline">
+        <div className="">
           <div className="mx-auto flex h-[68px] max-w-7xl items-center justify-between px-5 sm:px-8">
             <Link
               href="/"
@@ -244,7 +274,9 @@ export default function Navbar() {
                       {n.title}
                       <span
                         className={`absolute inset-x-3.5 -bottom-0.5 h-[2px] origin-left rounded-full bg-accent transition-transform duration-300 ${
-                          active ? "scale-x-100" : "scale-x-0 group-hover:scale-x-100"
+                          active
+                            ? "scale-x-100"
+                            : "scale-x-0 group-hover:scale-x-100"
                         }`}
                       />
                     </button>
@@ -285,11 +317,14 @@ export default function Navbar() {
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 100, opacity: 0 }}
             transition={{ type: "spring", stiffness: 400, damping: 35 }}
-            className="pointer-events-none fixed bottom-5 left-1/2 z-50 max-w-[calc(100vw-1rem)] -translate-x-1/2"
+            className="pointer-events-none fixed bottom-1 left-1/2 z-50 max-w-[calc(100vw-1rem)] -translate-x-1/2"
           >
             <div
               className="pointer-events-auto relative flex items-center gap-0.5 rounded-2xl border px-1.5 py-1.5 shadow-2xl backdrop-blur-xl"
-              style={{ background: "var(--dock-bg)", borderColor: "var(--line)" }}
+              style={{
+                background: "var(--dock-bg)",
+                borderColor: "var(--line)",
+              }}
             >
               {navItems.map((n) => {
                 const Icon = n.icon;
@@ -314,15 +349,26 @@ export default function Navbar() {
                       transition={{ duration: 0.2 }}
                     />
                     <motion.span
-                      animate={{ y: active ? -1 : 0, scale: active ? 1.1 : hovered ? 1.08 : 1 }}
-                      transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                      animate={{
+                        y: active ? -1 : 0,
+                        scale: active ? 1.1 : hovered ? 1.08 : 1,
+                      }}
+                      transition={{
+                        type: "spring",
+                        stiffness: 400,
+                        damping: 25,
+                      }}
                       className="relative z-10"
                     >
                       <Icon
                         size={19}
                         strokeWidth={active ? 2.2 : 1.8}
                         className={`transition-colors duration-200 ${
-                          active ? "text-accent" : hovered ? "text-fg" : "text-muted"
+                          active
+                            ? "text-accent"
+                            : hovered
+                              ? "text-fg"
+                              : "text-muted"
                         }`}
                       />
                     </motion.span>
@@ -330,7 +376,11 @@ export default function Navbar() {
                       <motion.span
                         layoutId="dock-dot"
                         className="absolute -bottom-0.5 h-1 w-1 rounded-full bg-accent"
-                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                        transition={{
+                          type: "spring",
+                          stiffness: 500,
+                          damping: 30,
+                        }}
                       />
                     )}
                     <AnimatePresence>
@@ -400,7 +450,11 @@ export default function Navbar() {
                           key={n.id}
                           initial={{ opacity: 0, y: 40 }}
                           animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.5, delay: i * 0.04, ease: [0.16, 1, 0.3, 1] }}
+                          transition={{
+                            duration: 0.5,
+                            delay: i * 0.04,
+                            ease: [0.16, 1, 0.3, 1],
+                          }}
                           onMouseEnter={() => setHoveredRow(n.id)}
                           onMouseLeave={() => setHoveredRow(null)}
                           onClick={() => go(n)}
@@ -412,14 +466,20 @@ export default function Navbar() {
                             </span>
                             <span
                               className={`text-[2rem] font-semibold tracking-tight transition-all duration-500 group-hover:translate-x-3 sm:text-5xl md:text-6xl ${
-                                active || hoveredRow === n.id ? "text-fg" : "text-fg/40"
+                                active || hoveredRow === n.id
+                                  ? "text-fg"
+                                  : "text-fg/40"
                               }`}
                             >
                               {n.title}
                             </span>
                           </div>
                           <div className="flex -translate-x-4 items-center gap-4 opacity-0 transition-all duration-500 group-hover:translate-x-0 group-hover:opacity-100">
-                            <Icon size={26} strokeWidth={1.5} className="hidden text-muted sm:block" />
+                            <Icon
+                              size={26}
+                              strokeWidth={1.5}
+                              className="hidden text-muted sm:block"
+                            />
                             <span className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white">
                               <ArrowRight size={17} />
                             </span>
@@ -451,11 +511,19 @@ export default function Navbar() {
                 <motion.div
                   initial={{ opacity: 0, y: 24, scale: 0.94 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
-                  transition={{ delay: 0.15, duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+                  transition={{
+                    delay: 0.15,
+                    duration: 0.45,
+                    ease: [0.16, 1, 0.3, 1],
+                  }}
                   className="relative z-10 flex flex-col items-center"
                 >
                   <span className="mb-7 flex h-20 w-20 items-center justify-center rounded-full border hairline bg-white/5">
-                    <clicked.icon size={34} strokeWidth={1.5} className="text-accent" />
+                    <clicked.icon
+                      size={34}
+                      strokeWidth={1.5}
+                      className="text-accent"
+                    />
                   </span>
                   <h2 className="px-6 text-center text-5xl font-semibold tracking-tight text-fg sm:text-7xl">
                     {clicked.title}
@@ -463,7 +531,11 @@ export default function Navbar() {
                   <motion.span
                     initial={{ scaleX: 0 }}
                     animate={{ scaleX: 1 }}
-                    transition={{ delay: 0.3, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+                    transition={{
+                      delay: 0.3,
+                      duration: 0.5,
+                      ease: [0.22, 1, 0.36, 1],
+                    }}
                     className="mt-7 h-[2px] w-16 origin-center rounded-full bg-accent sm:w-24"
                   />
                 </motion.div>
