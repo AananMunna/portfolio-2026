@@ -15,10 +15,10 @@ export default function AvailabilityCTA() {
         <div>
           <p className="mb-4 inline-flex items-center gap-2 font-mono text-xs uppercase tracking-widest text-accent">
             <span className="h-2 w-2 animate-pulse rounded-full bg-accent" />
-            Available for remote roles
+            Open to remote work
           </p>
           <h2 className="font-display text-4xl font-bold uppercase leading-[0.9] tracking-tighter sm:text-6xl">
-            Let&apos;s build <span className="italic text-accent">something solid.</span>
+            Got something <span className="italic text-accent">to build?</span>
           </h2>
         </div>
 

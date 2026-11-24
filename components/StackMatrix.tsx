@@ -93,11 +93,11 @@ export default function StackMatrix() {
       <div className="grid grid-cols-1 gap-12 md:grid-cols-12 md:gap-20">
         <div className="md:col-span-4">
           <h2 className="font-display text-4xl font-bold uppercase tracking-tighter sm:text-6xl md:sticky md:top-32">
-            Technical <br />
-            <span className="italic text-accent">Stack</span>
+            What I <br />
+            <span className="italic text-accent">work with</span>
           </h2>
           <p className="mt-6 max-w-xs font-mono text-xs uppercase leading-relaxed tracking-widest text-muted">
-            Current stack: React · Next.js · TypeScript · Node.js · PostgreSQL · MongoDB
+            Most used: React, Next.js, Node.js, MongoDB, PostgreSQL
           </p>
         </div>
 

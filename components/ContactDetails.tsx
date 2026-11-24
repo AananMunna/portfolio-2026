@@ -49,8 +49,8 @@ export default function ContactDetails() {
         {/* LEFT */}
         <div className="md:col-span-5">
           <h2 className="font-display text-4xl font-bold uppercase leading-[0.9] tracking-tighter sm:text-6xl">
-            Let&apos;s talk about <br />
-            <span className="italic text-accent">your next project.</span>
+            Send me <br />
+            <span className="italic text-accent">a message.</span>
           </h2>
 
           <div className="mt-10 space-y-4 font-mono text-sm">
@@ -68,24 +68,24 @@ export default function ContactDetails() {
             >
               ☎ WhatsApp · +880 1310 468353
             </a>
-            <p className="text-muted">Bangladesh · GMT+6 (BST)</p>
+            <p className="text-muted">Kushtia, Bangladesh · GMT+6</p>
           </div>
 
           {/* Availability panel */}
           <div className="mt-12 rounded-2xl border border-white/10 bg-white/[0.03] p-6">
             <div className="mb-5 flex items-center justify-between">
               <p className="font-mono text-xs uppercase tracking-widest text-muted">
-                Open for roles
+                Currently looking
               </p>
               <span className="inline-flex items-center gap-2 rounded-full bg-accent/10 px-3 py-1 font-mono text-[11px] uppercase tracking-wider text-accent">
                 <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" />
-                Active
+                Available
               </span>
             </div>
             <ul className="space-y-2 text-fg/75">
-              <li>• Full-time remote frontend or full-stack roles</li>
-              <li>• Freelance contracts</li>
-              <li>• Building SaaS products end to end</li>
+              <li>• Full-time remote roles (frontend or full-stack)</li>
+              <li>• Freelance projects</li>
+              <li>• Early-stage products that need someone to build them</li>
             </ul>
             <dl className="mt-6 grid grid-cols-2 gap-4 border-t border-white/10 pt-5 font-mono text-xs">
               <div>

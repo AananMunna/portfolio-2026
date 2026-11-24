@@ -15,7 +15,7 @@ const experiences = [
     location: "Onsite · Kushtia, Bangladesh",
     logo: "/images/aljaami.jpg", // ✅ correct path
     description:
-      "Full ownership of the product stack — from data modeling and REST API design to React UI and state management. I take features from idea to production, ensuring every layer is solid, maintainable, and ready for real users.",
+      "Worked on a school management product, Eqrah. I designed data models, wrote REST APIs, and built the React screens that used them. Most of my time went into taking features from a rough idea to something real users could open.",
     tech: [
       "MongoDB",
       "Express.js",
@@ -36,7 +36,7 @@ const experiences = [
     location: "Hybrid, Bangladesh",
     logo: "/images/codecarebd.jpg", // ✅ correct path
     description:
-      "Turned high-fidelity Figma designs into production React and Next.js interfaces. Focused on clean component architecture, performance, and pixel-level accuracy under tight delivery cycles.",
+      "Turned Figma designs into React and Next.js pages. I spent a lot of time on spacing, responsiveness and reusable components, usually on tight deadlines.",
     tech: [
       "React",
       "Next.js",

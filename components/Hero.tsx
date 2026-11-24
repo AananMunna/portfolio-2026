@@ -137,12 +137,12 @@ export default function Hero() {
 
             {/* Short senior description */}
             <p className="mt-5 text-[15px] leading-relaxed text-muted sm:text-base">
-              I build production SaaS, marketplace, and full-stack web apps — from Next.js frontends to Node.js APIs, PostgreSQL and MongoDB, with clean architecture and production-ready quality.
+              I build web apps from the database to the button. Mostly Next.js, Node and Postgres. I learned by shipping real projects, and I care more about things working well than looking clever.
             </p>
 
             {/* Status tags */}
             <div className="mt-5 flex flex-wrap justify-center gap-2 lg:justify-start">
-              {["Open for remote roles", "SaaS · Marketplace · Logistics", "Next.js · Node.js · PostgreSQL"].map(
+              {["Open to remote work", "Kushtia, Bangladesh"].map(
                 (tag) => (
                   <span
                     key={tag}
@@ -225,7 +225,7 @@ export default function Hero() {
           />
 
           <p className="mt-4 text-center font-mono text-[9px] uppercase tracking-[0.2em] text-muted/70 lg:text-left">
-            Aanan Munna · Dhaka
+            Aanan Munna · Kushtia
           </p>
         </motion.div>
       </div>
