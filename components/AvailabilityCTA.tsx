@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { motion } from "motion/react";
 
 export default function AvailabilityCTA() {
@@ -22,12 +23,9 @@ export default function AvailabilityCTA() {
           </h2>
         </div>
 
-        <a
-          href="#get-in-touch"
-          className="hover-target shrink-0 rounded-full border border-accent px-8 py-4 font-mono text-xs uppercase tracking-widest text-accent transition-colors hover:bg-accent hover:text-bg"
-        >
+        <Link href="/contact" className="hover-target btn-primary shrink-0 !px-8 !py-4">
           Get in touch →
-        </a>
+        </Link>
       </motion.div>
     </section>
   );

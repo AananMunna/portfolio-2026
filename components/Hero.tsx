@@ -2,12 +2,14 @@
 
 import { motion, useMotionValue, useSpring, useTransform } from "motion/react";
 import { useEffect, useState } from "react";
-import { Github, Linkedin, Instagram, Facebook, Twitter } from "lucide-react";
+import Link from "next/link";
+import { Github, Linkedin, Instagram, Facebook, Twitter, Mail, ArrowUpRight } from "lucide-react";
 
 const PHOTO_SRC =
   "https://res.cloudinary.com/dtiotqi9q/image/upload/v1790229722/ChatGPT_Image_Sep_24_2026_12_01_47_PM_hl5xrw.png";
 
 const socials = [
+  { name: "Email", icon: Mail, href: "mailto:aananmunna420@gmail.com" },
   { name: "GitHub", icon: Github, href: "https://github.com/AananMunna" },
   { name: "LinkedIn", icon: Linkedin, href: "https://www.linkedin.com/in/aanan-munna/" },
   { name: "Twitter", icon: Twitter, href: "https://x.com/aanan_munna" },
@@ -36,8 +38,8 @@ export default function Hero() {
   const spring = { damping: 32, stiffness: 120 };
   const sx = useSpring(mouseX, spring);
   const sy = useSpring(mouseY, spring);
-  const glowX = useTransform(sx, [-1, 1], ["-12%", "12%"]);
-  const glowY = useTransform(sy, [-1, 1], ["-12%", "12%"]);
+  const glowX = useTransform(sx, [-1, 1], ["-10%", "10%"]);
+  const glowY = useTransform(sy, [-1, 1], ["-10%", "10%"]);
 
   useEffect(() => {
     if (reduce) return;
@@ -49,184 +51,125 @@ export default function Hero() {
     return () => window.removeEventListener("mousemove", onMove);
   }, [mouseX, mouseY, reduce]);
 
-  const name = "AANAN";
-  const surname = "MUNNA";
+  const rise = (delay: number) => ({
+    initial: reduce ? false : ({ opacity: 0, y: 18 } as const),
+    animate: { opacity: 1, y: 0 },
+    transition: { duration: 0.8, delay, ease: [0.16, 1, 0.3, 1] as const },
+  });
 
   return (
-    <section className="relative pt-25 flex min-h-[100svh] items-center overflow-hidden bg-bg">
-      {/* soft ambient glow */}
-      {!reduce && (
-        <motion.div
-          style={{ x: glowX, y: glowY }}
-          className="pointer-events-none absolute left-1/2 top-1/2 z-0 h-[70vmax] w-[70vmax] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-tr from-accent/15 via-accent/5 to-transparent blur-[120px]"
-        />
-      )}
-
-      {/* vignette */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 z-0"
-        style={{
-          background:
-            "radial-gradient(ellipse 80% 70% at 50% 45%, transparent 40%, var(--vignette))",
-        }}
-      />
-
-      <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-col-reverse items-center gap-12 px-5 py-16 sm:px-8 lg:flex-row lg:items-center lg:justify-between lg:gap-16 lg:px-12 lg:py-0">
-        {/* LEFT */}
-        <div className="flex w-full flex-col items-center text-center lg:max-w-[55%] lg:items-start lg:text-left">
-          {/* Name */}
-          <h1 className="font-display font-bold uppercase leading-[0.82] tracking-tighter">
-            <span className="block overflow-hidden">
-              {name.split("").map((letter, i) => (
-                <motion.span
-                  key={`n-${i}`}
-                  initial={reduce ? false : { y: "110%", opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{
-                    duration: 0.7,
-                    delay: 0.12 + i * 0.045,
-                    ease: [0.16, 1, 0.3, 1],
-                  }}
-                  className="inline-block text-[clamp(3.2rem,13vw,7.8rem)] text-transparent bg-clip-text bg-gradient-to-b from-white to-white/50"
-                >
-                  {letter}
-                </motion.span>
-              ))}
-            </span>
-            <span className="mt-[-0.06em] block overflow-hidden">
-              {surname.split("").map((letter, i) => (
-                <motion.span
-                  key={`s-${i}`}
-                  initial={reduce ? false : { y: "110%", opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{
-                    duration: 0.7,
-                    delay: 0.32 + i * 0.045,
-                    ease: [0.16, 1, 0.3, 1],
-                  }}
-                  className="inline-block text-[clamp(3.2rem,13vw,7.8rem)] italic text-accent drop-shadow-[0_0_40px_var(--glow)]"
-                >
-                  {letter}
-                </motion.span>
-              ))}
-            </span>
-          </h1>
-
-          {/* Role + Description */}
+    <section className="relative bg-bg">
+      {/* background layers: clipped on their own so content is never cut off */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="hero-ambient absolute inset-0" />
+        {!reduce && (
           <motion.div
-            initial={reduce ? false : { opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.75, ease: [0.16, 1, 0.3, 1] }}
-            className="mt-8 max-w-md"
+            style={{ x: glowX, y: glowY }}
+            className="absolute left-1/2 top-1/2 h-[60vmax] w-[60vmax] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-tr from-accent/15 via-accent/5 to-transparent blur-[110px]"
+          />
+        )}
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "radial-gradient(ellipse 80% 70% at 50% 45%, transparent 45%, var(--vignette))",
+          }}
+        />
+      </div>
+
+      <div className="relative z-10 mx-auto flex min-h-[100svh] w-full max-w-7xl flex-col-reverse items-center justify-center gap-12 px-5 pb-20 pt-32 sm:px-8 lg:flex-row lg:justify-between lg:gap-16 lg:px-12 lg:pb-24 lg:pt-36">
+        {/* LEFT */}
+        <div className="flex w-full flex-col items-center text-center lg:max-w-[56%] lg:items-start lg:text-left">
+          <motion.div
+            {...rise(0.05)}
+            className="inline-flex items-center gap-2 rounded-full border hairline bg-white/[0.04] px-3.5 py-1.5 text-[12.5px] font-medium text-fg/80"
           >
-            {/* Highlighted Role */}
-            <div className="inline-flex flex-col items-center lg:items-start">
-              <p className="font-mono text-[13px] sm:text-[15px] font-semibold uppercase tracking-[0.28em] text-accent">
-                Full Stack Developer
-              </p>
-
-              {/* Animated underline */}
-              <motion.div
-                initial={reduce ? false : { scaleX: 0 }}
-                animate={{ scaleX: 1 }}
-                transition={{ duration: 0.85, delay: 1.05, ease: [0.16, 1, 0.3, 1] }}
-                className="mt-2.5 h-[2px] w-full origin-left bg-gradient-to-r from-accent via-accent/70 to-transparent"
-              />
-            </div>
-
-            {/* Short senior description */}
-            <p className="mt-5 text-[15px] leading-relaxed text-muted sm:text-base">
-              I build web apps from the database to the button. Mostly Next.js, Node and Postgres. I learned by shipping real projects, and I care more about things working well than looking clever.
-            </p>
-
-            {/* Status tags */}
-            <div className="mt-5 flex flex-wrap justify-center gap-2 lg:justify-start">
-              {["Open to remote work", "Kushtia, Bangladesh"].map(
-                (tag) => (
-                  <span
-                    key={tag}
-                    className="rounded-full border border-white/10 px-3 py-1 font-mono text-[10px] uppercase tracking-widest text-fg/60"
-                  >
-                    {tag}
-                  </span>
-                )
-              )}
-            </div>
-
-            {/* CTAs */}
-            <div className="mt-7 flex flex-wrap justify-center gap-3 lg:justify-start">
-              <a
-                href="#work"
-                className="hover-target rounded-full bg-accent px-6 py-3 font-mono text-xs font-semibold uppercase tracking-widest text-bg transition-opacity hover:opacity-80"
-              >
-                View work
-              </a>
-              <a
-                href="#get-in-touch"
-                className="hover-target rounded-full border border-white/20 px-6 py-3 font-mono text-xs uppercase tracking-widest text-fg/80 transition-colors hover:border-accent hover:text-accent"
-              >
-                Get in touch
-              </a>
-            </div>
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-60" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-accent" />
+            </span>
+            Open to remote work
+            <span className="text-muted">·</span>
+            <span className="text-muted">Kushtia, Bangladesh</span>
           </motion.div>
 
-          {/* Socials */}
-          <motion.div
-            initial={reduce ? false : { opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 1.0, ease: [0.16, 1, 0.3, 1] }}
-            className="mt-9 flex flex-col items-center gap-6 sm:flex-row sm:items-center lg:items-start"
+          {/* Name: deliberately modest. Role carries the weight. */}
+          <motion.h1
+            {...rise(0.15)}
+            className="mt-6 text-[clamp(1.9rem,4.2vw,3.4rem)] font-semibold uppercase leading-[1.05] tracking-[0.04em] text-fg"
           >
-            <div className="flex items-center gap-4">
-              {socials.map((social) => {
-                const Icon = social.icon;
-                return (
-                  <a
-                    key={social.name}
-                    href={social.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={social.name}
-                    className="text-white/50 hover:text-accent transition-colors duration-300 hover-target"
-                  >
-                    <Icon size={18} strokeWidth={1.5} />
-                  </a>
-                );
-              })}
-            </div>
+            Aanan <span className="text-accent">Munna</span>
+          </motion.h1>
+
+          <motion.p
+            {...rise(0.25)}
+            className="mt-3 font-mono text-[13px] font-medium uppercase tracking-[0.22em] text-muted sm:text-sm"
+          >
+            Full Stack Developer
+          </motion.p>
+
+          <motion.p
+            {...rise(0.35)}
+            className="mt-6 max-w-[34rem] text-[15.5px] leading-[1.7] text-muted sm:text-[17px]"
+          >
+            I build web apps from the database to the button. Mostly Next.js, Node and Postgres. I learned by shipping real projects, and I care more about things working well than looking clever.
+          </motion.p>
+
+          <motion.div {...rise(0.45)} className="mt-8 flex flex-wrap justify-center gap-3 lg:justify-start">
+            <a href="#work" className="hover-target btn-primary">
+              View work
+            </a>
+            <Link href="/contact" className="hover-target btn-ghost">
+              Get in touch <ArrowUpRight size={16} />
+            </Link>
+          </motion.div>
+
+          {/* Socials: real buttons, always fully visible */}
+          <motion.div {...rise(0.55)} className="mt-9 flex flex-wrap items-center justify-center gap-2.5 lg:justify-start">
+            {socials.map((social) => {
+              const Icon = social.icon;
+              return (
+                <a
+                  key={social.name}
+                  href={social.href}
+                  target={social.href.startsWith("mailto") ? undefined : "_blank"}
+                  rel="noopener noreferrer"
+                  aria-label={social.name}
+                  title={social.name}
+                  className="hover-target flex h-10 w-10 items-center justify-center rounded-full border hairline bg-white/[0.04] text-fg/65 transition-all duration-300 hover:-translate-y-0.5 hover:border-accent hover:text-accent"
+                >
+                  <Icon size={17} strokeWidth={1.6} />
+                </a>
+              );
+            })}
           </motion.div>
         </div>
 
-        {/* RIGHT: Portrait */}
+        {/* RIGHT: portrait */}
         <motion.div
-          initial={reduce ? false : { opacity: 0, scale: 0.94, y: 24 }}
+          initial={reduce ? false : { opacity: 0, scale: 0.95, y: 24 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          transition={{ duration: 0.9, delay: 0.55, ease: [0.16, 1, 0.3, 1] }}
-          className="relative w-[min(58vw,240px)] shrink-0 sm:w-[220px] lg:w-[min(28vw,320px)]"
+          transition={{ duration: 0.9, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
+          className="relative w-[min(62vw,260px)] shrink-0 sm:w-[260px] lg:w-[min(28vw,340px)]"
         >
-          {/* corner marks */}
-          <span className="absolute -left-2.5 -top-2.5 z-20 h-5 w-5 border-l border-t border-accent/50 sm:-left-3 sm:-top-3 sm:h-6 sm:w-6" />
-          <span className="absolute -right-2.5 -top-2.5 z-20 h-5 w-5 border-r border-t border-accent/50 sm:-right-3 sm:-top-3 sm:h-6 sm:w-6" />
-          <span className="absolute -bottom-2.5 -left-2.5 z-20 h-5 w-5 border-b border-l border-accent/50 sm:-bottom-3 sm:-left-3 sm:h-6 sm:w-6" />
-          <span className="absolute -bottom-2.5 -right-2.5 z-20 h-5 w-5 border-b border-r border-accent/50 sm:-bottom-3 sm:-right-3 sm:h-6 sm:w-6" />
+          <div className="absolute -inset-4 -z-10 rounded-[2.2rem] bg-gradient-to-br from-accent/25 via-transparent to-transparent blur-2xl" />
+          <div className="card overflow-hidden !rounded-[1.75rem] p-1.5">
+            <img
+              src={PHOTO_SRC}
+              alt="Aanan Munna, Full Stack Developer"
+              width={640}
+              height={800}
+              className="block h-auto w-full select-none rounded-[1.4rem]"
+              style={{ filter: "contrast(1.03)" }}
+              draggable={false}
+            />
+          </div>
 
-          <img
-            src={PHOTO_SRC}
-            alt="Aanan Munna — Full Stack Developer"
-            width={640}
-            height={800}
-            className="relative z-10 block h-auto w-full select-none"
-            style={{
-              filter: "grayscale(15%) contrast(1.05) brightness(0.93)",
-              clipPath: "polygon(0 0, 100% 0, 100% 93%, 90% 100%, 0 100%)",
-            }}
-            draggable={false}
-          />
-
-          <p className="mt-4 text-center font-mono text-[9px] uppercase tracking-[0.2em] text-muted/70 lg:text-left">
-            Aanan Munna · Kushtia
-          </p>
+          {/* floating stack card */}
+          <div className="glass absolute -bottom-5 -left-4 hidden rounded-2xl border hairline px-4 py-3 shadow-xl sm:block lg:-left-10">
+            <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted">Currently building with</p>
+            <p className="mt-1 text-sm font-semibold text-fg">Next.js · Node · Postgres</p>
+          </div>
         </motion.div>
       </div>
     </section>

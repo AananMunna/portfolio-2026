@@ -1,265 +1,240 @@
 "use client";
 
-import { motion } from "motion/react";
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState, Fragment } from "react";
+import { stack, type Tech } from "@/lib/stackData";
 
-const currentStack = [
-  "TypeScript",
-  "React",
-  "Next.js",
-  "Tailwind CSS",
-  "Node.js",
-  "Express.js",
-  "PostgreSQL",
-  "Prisma",
-  "MongoDB",
-  "Redis",
-  "Stripe",
-  "Git",
-  "GitHub Actions",
-];
+/* ───────────── tiny syntax highlighter (good enough for a 12-line snippet) ───────────── */
 
-const groups: { title: string; items: string[] }[] = [
-  {
-    title: "Languages",
-    items: [
-      "TypeScript",
-      "JavaScript ES6+",
-    ],
-  },
-  {
-    title: "Frontend Systems",
-    items: [
-      "React",
-      "Next.js",
-      "Tailwind CSS",
-      "Redux",
-      "Framer Motion",
-    ],
-  },
-  {
-    title: "Backend Services",
-    items: [
-      "Node.js",
-      "Express.js",
-      "REST API Design",
-    ],
-  },
-  {
-    title: "Databases & ORMs",
-    items: [
-      "MongoDB",
-      "PostgreSQL",
-      "Prisma ORM",
-      "Redis",
-    ],
-  },
-  {
-    title: "Security & Access",
-    items: [
-      "JWT",
-      "Role-based Access",
-    ],
-  },
-  {
-    title: "Payments",
-    items: [
-      "Stripe",
-      "bKash",
-    ],
-  },
-  {
-    title: "DevOps & Deployment",
-    items: [
-      "Vercel",
-      "Netlify",
-      "CI/CD Pipelines",
-    ],
-  },
-  {
-    title: "Tooling & Workflow",
-    items: [
-      "Git",
-      "GitHub Actions",
-      "Figma",
-    ],
-  },
-];
+const KEYWORDS = new Set(
+  (
+    "const let var function return async await export default import from if else for while throw try catch new " +
+    "type interface extends implements class enum as of in typeof null true false undefined void " +
+    "model SELECT FROM WHERE LEFT JOIN ON ORDER BY LIMIT AS paths get parameters responses name on jobs steps uses run with " +
+    "git switch add commit rebase push"
+  ).split(" "),
+);
 
-const files: { name: string; code: string }[] = [
-  {
-    name: "types.ts",
-    code: `export type ShipmentStatus =
-  | "PENDING"
-  | "ASSIGNED"
-  | "PICKED_UP"
-  | "IN_TRANSIT"
-  | "OUT_FOR_DELIVERY"
-  | "DELIVERED"
-  | "FAILED";
+const TOKEN =
+  /(\/\/.*|#\s.*|--\s.*)|("(?:[^"\\\n]|\\.)*"?|'(?:[^'\\\n]|\\.)*'?|`(?:[^`\\]|\\.)*`?)|\b(\d+(?:\.\d+)?)\b|\b([A-Za-z_$][\w$]*)(?=\()|\b([A-Za-z_$][\w$]*)\b/g;
 
-export interface Shipment {
-  id: string;
-  trackingCode: string;
-  status: ShipmentStatus;
-  riderId: string | null;
-}`,
-  },
-  {
-    name: "page.tsx",
-    code: `export default async function TrackPage({
-  params,
-}: {
-  params: Promise<{ code: string }>;
-}) {
-  const { code } = await params;
-  const shipment = await getShipment(code);
+function highlight(src: string) {
+  const out: React.ReactNode[] = [];
+  let last = 0;
+  let m: RegExpExecArray | null;
+  TOKEN.lastIndex = 0;
+  while ((m = TOKEN.exec(src))) {
+    if (m.index > last) out.push(src.slice(last, m.index));
+    const [txt, comment, str, num, fn, word] = m;
+    let color: string | undefined;
+    if (comment) color = "#6b7a90";
+    else if (str) color = "#ecc48d";
+    else if (num) color = "#f78c6c";
+    else if (fn) color = "#82aaff";
+    else if (word && KEYWORDS.has(word)) color = "#c792ea";
+    else if (word && /^[A-Z]/.test(word)) color = "#ffcb6b";
+    out.push(
+      color ? (
+        <span key={m.index} style={{ color }}>
+          {txt}
+        </span>
+      ) : (
+        txt
+      ),
+    );
+    last = m.index + txt.length;
+    if (txt.length === 0) TOKEN.lastIndex++;
+  }
+  if (last < src.length) out.push(src.slice(last));
+  return out;
+}
 
-  if (!shipment) notFound();
+/* ───────────── typing hook ───────────── */
 
-  return <Timeline events={shipment.events} />;
-}`,
-  },
-  {
-    name: "server.ts",
-    code: `router.patch("/:id/assign", requireRole("ADMIN"), async (req, res) => {
-  const { riderId } = assignSchema.parse(req.body);
+function useTyped(text: string, reduce: boolean) {
+  const [n, setN] = useState(0);
+  useEffect(() => {
+    if (reduce) {
+      setN(text.length);
+      return;
+    }
+    setN(0);
+    const duration = Math.min(1700, Math.max(550, text.length * 6.5));
+    const start = performance.now() + 120; // short beat before typing starts
+    let raf = 0;
+    const tick = (t: number) => {
+      const p = Math.max(0, Math.min(1, (t - start) / duration));
+      setN(Math.floor(p * text.length));
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [text, reduce]);
+  return n;
+}
 
-  const result = await prisma.shipment.updateMany({
-    where: { id: req.params.id, status: "PENDING" },
-    data: { riderId, status: "ASSIGNED" },
-  });
+/* ───────────── terminal (the sticky half) ───────────── */
 
-  if (result.count === 0) throw new ConflictError("Already assigned");
-  res.json({ ok: true });
-});`,
-  },
-  {
-    name: "schema.prisma",
-    code: `model Shipment {
-  id           String         @id @default(cuid())
-  trackingCode String         @unique
-  status       ShipmentStatus @default(PENDING)
-  riderId      String?
-  events       TrackingEvent[]
-  createdAt    DateTime       @default(now())
-}`,
-  },
-  {
-    name: "ci.yml",
-    code: `name: CI
-on: [push, pull_request]
-
-jobs:
-  check:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - run: npm ci
-      - run: npx tsc --noEmit
-      - run: npm run build`,
-  },
-];
-
-export default function StackMatrix() {
-  const [active, setActive] = useState(0);
-  const lines = files[active].code.split("\n");
+function Terminal({ tech, reduce }: { tech: Tech; reduce: boolean }) {
+  const n = useTyped(tech.code, reduce);
+  const done = n >= tech.code.length;
+  const typed = tech.code.slice(0, n);
+  const lineCount = tech.code.split("\n").length;
 
   return (
-    <section className="relative z-20 mx-auto max-w-7xl bg-bg px-4 py-24 sm:px-8">
-      <h2 className="font-display text-4xl font-bold uppercase tracking-tighter sm:text-6xl">
-        Technical <span className="italic text-accent">Stack</span>
-      </h2>
-
-      {/* Current stack */}
-      <div className="mt-10">
-        <p className="mb-4 font-mono text-xs uppercase tracking-widest text-muted">
-          Current stack
-        </p>
-        <div className="flex flex-wrap gap-2.5">
-          {currentStack.map((t) => (
-            <span
-              key={t}
-              className="rounded-full border border-white/10 px-3.5 py-1.5 font-mono text-xs text-fg/70 transition-colors hover:border-accent/40 hover:text-accent"
-            >
-              {t}
-            </span>
-          ))}
+    <div
+      className="overflow-hidden rounded-2xl border shadow-[0_30px_70px_-30px_rgba(0,0,0,0.55)]"
+      style={{ background: "var(--term-bg)", borderColor: "rgba(255,255,255,0.08)" }}
+    >
+      {/* chrome */}
+      <div className="flex items-center gap-3 border-b px-4 py-3" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
+        <div className="flex gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" />
+          <span className="h-2.5 w-2.5 rounded-full bg-[#febc2e]" />
+          <span className="h-2.5 w-2.5 rounded-full bg-[#28c840]" />
         </div>
+        <p className="flex-1 truncate text-center font-mono text-[11.5px] text-[#8b96a8]">
+          aanan@dev — {tech.file}
+        </p>
+        <span className="rounded bg-white/[0.07] px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-[#9aa6b8]">
+          {tech.lang}
+        </span>
       </div>
 
-      <div className="mt-16 grid grid-cols-1 gap-10 lg:grid-cols-12">
-        {/* Categories */}
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:col-span-7">
-          {groups.map((group, gi) => (
-            <motion.div
-              key={group.title}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-8%" }}
-              transition={{ duration: 0.5, delay: (gi % 2) * 0.08, ease: [0.16, 1, 0.3, 1] }}
-              className="rounded-2xl border border-white/10 bg-white/[0.02] p-5"
-            >
-              <h3 className="mb-4 font-mono text-xs uppercase tracking-widest text-accent">
-                {group.title}
-              </h3>
-              <ul className="flex flex-wrap gap-2">
-                {group.items.map((item) => (
-                  <li
-                    key={item}
-                    className="rounded-full border border-white/10 px-3 py-1 text-sm text-fg/80"
-                  >
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </motion.div>
-          ))}
+      {/* code */}
+      <pre
+        className="overflow-hidden px-4 py-4 font-mono text-[12.5px] leading-[1.7] text-[#d6deeb] sm:text-[13px] sm:px-5"
+        style={{ minHeight: `${Math.max(lineCount, 9) * 1.7 * 13 + 32}px` }}
+        aria-label={`${tech.name} code example`}
+      >
+        <code className="block whitespace-pre-wrap break-words">
+          {highlight(typed)}
+          {!done && <span className="caret" />}
+        </code>
+      </pre>
+
+      {/* run output */}
+      <div
+        className="border-t px-4 py-3 font-mono text-[12px] leading-relaxed sm:px-5"
+        style={{ borderColor: "rgba(255,255,255,0.07)", background: "rgba(255,255,255,0.025)" }}
+      >
+        <p className="text-[#8b96a8]">
+          <span className="text-[#34d399]">$</span> {tech.cmd}
+          {!done && <span className="caret ml-1" />}
+        </p>
+        <p
+          className="mt-1 text-[#34d399] transition-all duration-500"
+          style={{ opacity: done ? 1 : 0, transform: done ? "none" : "translateY(4px)" }}
+        >
+          {tech.out}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/* ───────────── section ───────────── */
+
+export default function StackMatrix() {
+  const flat = useMemo(() => stack.flatMap((g) => g.items), []);
+  const [active, setActive] = useState(flat[0].name);
+  const [reduce, setReduce] = useState(false);
+  const [touch, setTouch] = useState(false);
+  const rowRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+
+  const tech = flat.find((t) => t.name === active) ?? flat[0];
+
+  useEffect(() => {
+    setReduce(window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+    setTouch(window.matchMedia("(hover: none)").matches);
+  }, []);
+
+  // On touch screens there is no hover: whichever row crosses the middle of the screen becomes active.
+  useEffect(() => {
+    if (!touch) return;
+    const io = new IntersectionObserver(
+      (entries) =>
+        entries.forEach((e) => {
+          if (e.isIntersecting) setActive((e.target as HTMLElement).dataset.tech!);
+        }),
+      { rootMargin: "-42% 0px -48% 0px", threshold: 0 },
+    );
+    Object.values(rowRefs.current).forEach((el) => el && io.observe(el));
+    return () => io.disconnect();
+  }, [touch]);
+
+  return (
+    <section className="relative z-20 bg-bg">
+      <div className="mx-auto max-w-7xl px-5 py-24 sm:px-8 sm:py-32">
+        <div className="max-w-2xl">
+          <p className="eyebrow">Technical stack</p>
+          <h2 className="section-title mt-3">
+            Tools I build <span className="text-accent">with.</span>
+          </h2>
+          <p className="mt-4 text-[17px] leading-relaxed text-muted">
+            {touch
+              ? "Scroll the list. The terminal shows how I use each one."
+              : "Hover anything on the left. The terminal shows how I actually use it."}
+          </p>
         </div>
 
-        {/* Editor + terminal */}
-        <div className="lg:col-span-5">
-          <div className="lg:sticky lg:top-28">
-            <div className="overflow-hidden rounded-2xl border border-white/10 bg-surface">
-              <div className="flex items-center gap-1.5 border-b border-white/10 px-4 py-3">
-                <span className="h-2.5 w-2.5 rounded-full bg-red-400/70" />
-                <span className="h-2.5 w-2.5 rounded-full bg-amber-300/70" />
-                <span className="h-2.5 w-2.5 rounded-full bg-accent/70" />
-              </div>
-
-              <div className="flex overflow-x-auto border-b border-white/10">
-                {files.map((f, i) => (
-                  <button
-                    key={f.name}
-                    onClick={() => setActive(i)}
-                    className={`hover-target whitespace-nowrap border-r border-white/10 px-4 py-2.5 font-mono text-xs transition-colors ${
-                      i === active ? "bg-white/[0.05] text-accent" : "text-muted hover:text-fg"
-                    }`}
-                  >
-                    {f.name}
-                  </button>
-                ))}
-              </div>
-
-              <pre className="max-h-[340px] overflow-auto p-4 font-mono text-[12.5px] leading-relaxed text-fg/80">
-                {lines.map((line, i) => (
-                  <div key={i} className="flex">
-                    <span className="mr-4 w-5 shrink-0 select-none text-right text-muted/50">{i + 1}</span>
-                    <code className="whitespace-pre">{line || " "}</code>
-                  </div>
-                ))}
-              </pre>
-            </div>
-
-            <div className="mt-4 rounded-2xl border border-white/10 bg-surface p-4 font-mono text-xs leading-relaxed">
-              <p className="text-muted">
-                <span className="text-accent">$</span> npx tsc --noEmit
+        <div className="mt-14 grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-16">
+          {/* terminal: sticks while the list scrolls (below the list on desktop's right, on top for phones) */}
+          <div className="order-first lg:order-last">
+            <div className="sticky top-[84px] z-10 lg:top-28">
+              <Terminal tech={tech} reduce={reduce} />
+              <p className="mt-3 hidden text-center font-mono text-[11px] text-muted lg:block">
+                {tech.name} · {tech.use}
               </p>
-              <p className="mt-1 text-accent">✓ Found 0 errors. Type check passed.</p>
             </div>
+          </div>
+
+          {/* single-column list */}
+          <div className="pb-10 lg:pb-24">
+            {stack.map((group) => (
+              <Fragment key={group.title}>
+                <p className="eyebrow mb-1 mt-12 first:mt-0">{group.title}</p>
+                <ul>
+                  {group.items.map((t) => {
+                    const on = t.name === active;
+                    return (
+                      <li key={t.name}>
+                        <button
+                          ref={(el) => {
+                            rowRefs.current[t.name] = el;
+                          }}
+                          data-tech={t.name}
+                          onMouseEnter={() => setActive(t.name)}
+                          onFocus={() => setActive(t.name)}
+                          onClick={() => setActive(t.name)}
+                          aria-pressed={on}
+                          className="hover-target group relative flex w-full items-baseline justify-between gap-6 border-b hairline py-4 text-left sm:py-5"
+                        >
+                          <span
+                            className={`absolute -left-4 top-1/2 h-0 w-[3px] -translate-y-1/2 rounded-full bg-accent transition-all duration-300 ${
+                              on ? "h-7" : ""
+                            }`}
+                          />
+                          <span
+                            className={`text-[1.65rem] font-semibold tracking-tight transition-all duration-300 sm:text-[2.1rem] ${
+                              on ? "translate-x-2 text-fg" : "text-fg/35 group-hover:text-fg/70"
+                            }`}
+                          >
+                            {t.name}
+                          </span>
+                          <span
+                            className={`hidden text-right font-mono text-[11.5px] transition-colors duration-300 md:block ${
+                              on ? "text-accent" : "text-muted/70"
+                            }`}
+                          >
+                            {t.use}
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </Fragment>
+            ))}
           </div>
         </div>
       </div>

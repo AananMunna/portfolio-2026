@@ -16,7 +16,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const post = getPost(slug);
   if (!post) return {};
   return {
-    title: `${post.title} | Aanan Munna`,
+    title: post.title,
     description: post.excerpt,
     openGraph: { title: post.title, description: post.excerpt, images: [post.cover] },
   };
@@ -33,7 +33,7 @@ export default async function BlogPost({ params }: Props) {
     .map((b) => ({ id: slugify((b as { text: string }).text), text: (b as { text: string }).text }));
 
   return (
-    <div className="mx-auto grid max-w-7xl grid-cols-1 gap-10 px-5 pb-32 pt-10 lg:grid-cols-[220px_minmax(0,1fr)_200px]">
+    <div className="mx-auto grid max-w-7xl grid-cols-1 gap-10 px-5 pb-32 pt-28 lg:grid-cols-[220px_minmax(0,1fr)_200px]">
       {/* Left: all posts */}
       <aside className="hidden lg:block">
         <div className="sticky top-24">

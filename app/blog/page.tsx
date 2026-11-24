@@ -3,13 +3,13 @@ import Link from "next/link";
 import { posts, readingTime } from "@/lib/blogData";
 
 export const metadata: Metadata = {
-  title: "Blog | Aanan Munna",
+  title: "Blog",
   description: "Notes on problems I ran into while building real projects.",
 };
 
 export default function BlogIndex() {
   return (
-    <main className="mx-auto max-w-6xl px-5 pb-32 pt-16">
+    <main className="mx-auto max-w-6xl px-5 pb-32 pt-32 sm:pt-40">
       <h1 className="font-display text-5xl font-bold tracking-tighter sm:text-6xl">Blog</h1>
       <p className="mt-4 max-w-xl text-lg text-fg/60">
         Notes on problems I ran into while building real projects, and what I did about them.
