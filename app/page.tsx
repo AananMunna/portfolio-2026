@@ -13,6 +13,11 @@ import Projects from '@/components/Projects';
 import Contact from '@/components/Contact';
 import ChatAssistant from '@/components/ChatAssistant';
 import BootSequence from '@/components/BootSequence';
+import TechMarquee from '@/components/TechMarquee';
+import StackMatrix from '@/components/StackMatrix';
+import Blog from '@/components/Blog';
+import AvailabilityCTA from '@/components/AvailabilityCTA';
+import ContactDetails from '@/components/ContactDetails';
 
 export default function Home() {
   const [bootComplete, setBootComplete] = useState(false);
@@ -34,11 +39,18 @@ export default function Home() {
         </div> */}
         
         <Hero />
+        <TechMarquee />
         <div id="about"><About /></div>
         <div id="experience"><Experience /></div>
         <div id="work"><Projects /></div>
-        <div id="skills"><TechSkills /></div>
+        <div id="skills">
+          <StackMatrix />
+          <TechSkills />
+        </div>
         {/* <div id="skills"><Skills /></div> */}
+        <Blog />
+        <AvailabilityCTA />
+        <ContactDetails />
         <div id="contact"><Contact /></div>
         
         {/* <div className="hidden md:block">

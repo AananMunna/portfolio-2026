@@ -48,6 +48,11 @@ const experiences = [
   },
 ];
 
+const featured = [
+  { name: "CourierGo", kind: "Logistics Platform" },
+  { name: "RentNest", kind: "Rental Marketplace" },
+];
+
 export default function Experience() {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-20%" });
@@ -142,6 +147,29 @@ export default function Experience() {
                     </span>
                   ))}
                 </div>
+
+                {/* Featured projects (first role only) */}
+                {index === 0 && (
+                  <div className="mt-8">
+                    <p className="mb-3 font-mono text-[11px] uppercase tracking-widest text-muted">
+                      Featured projects
+                    </p>
+                    <div className="flex flex-wrap gap-3">
+                      {featured.map((f) => (
+                        <a
+                          key={f.name}
+                          href="#work"
+                          className="hover-target rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 transition-colors hover:border-accent/40"
+                        >
+                          <span className="block text-fg">{f.name}</span>
+                          <span className="font-mono text-[11px] uppercase tracking-wider text-muted">
+                            {f.kind} · View case →
+                          </span>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Divider */}
                 {index !== experiences.length - 1 && (

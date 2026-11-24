@@ -22,7 +22,8 @@ const syneMono = Syne_Mono({
 
 export const metadata: Metadata = {
   title: 'Aanan | Full Stack Developer',
-  description: 'A cutting-edge front-end developer portfolio',
+  description:
+    'Full Stack Developer building production SaaS, marketplace and logistics platforms with Next.js, React, Node.js, PostgreSQL and MongoDB.',
   icons: {
     icon: [
       { url: '/favicon.ico', sizes: 'any' },

@@ -93,7 +93,10 @@ export default function Contact() {
           </a>
         </div>
         <div className="text-center sm:text-right">
-          <p>© 2026 Aanan Munna</p>
+          <a href="#" className="hover-target hover:underline">
+            Back to top ↑
+          </a>
+          <p className="mt-1">© 2026 Aanan Munna</p>
           <p>All Rights Reserved</p>
         </div>
       </div>

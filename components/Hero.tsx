@@ -137,8 +137,38 @@ export default function Hero() {
 
             {/* Short senior description */}
             <p className="mt-5 text-[15px] leading-relaxed text-muted sm:text-base">
-              I design and build scalable systems with clean architecture, strong performance, and production-ready quality.
+              I build production SaaS, marketplace, and full-stack web apps — from Next.js frontends to Node.js APIs, PostgreSQL and MongoDB, with clean architecture and production-ready quality.
             </p>
+
+            {/* Status tags */}
+            <div className="mt-5 flex flex-wrap justify-center gap-2 lg:justify-start">
+              {["Open for remote roles", "SaaS · Marketplace · Logistics", "Next.js · Node.js · PostgreSQL"].map(
+                (tag) => (
+                  <span
+                    key={tag}
+                    className="rounded-full border border-white/10 px-3 py-1 font-mono text-[10px] uppercase tracking-widest text-fg/60"
+                  >
+                    {tag}
+                  </span>
+                )
+              )}
+            </div>
+
+            {/* CTAs */}
+            <div className="mt-7 flex flex-wrap justify-center gap-3 lg:justify-start">
+              <a
+                href="#work"
+                className="hover-target rounded-full bg-accent px-6 py-3 font-mono text-xs font-semibold uppercase tracking-widest text-bg transition-opacity hover:opacity-80"
+              >
+                View work
+              </a>
+              <a
+                href="#get-in-touch"
+                className="hover-target rounded-full border border-white/20 px-6 py-3 font-mono text-xs uppercase tracking-widest text-fg/80 transition-colors hover:border-accent hover:text-accent"
+              >
+                Get in touch
+              </a>
+            </div>
           </motion.div>
 
           {/* Socials */}
