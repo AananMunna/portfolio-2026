@@ -124,7 +124,7 @@ export default async function BlogPost({ params }: Props) {
                     key={i}
                     className={`rounded-xl border-l-4 p-5 text-base leading-relaxed ${
                       block.kind === "warning"
-                        ? "border-amber-400 bg-amber-400/10 text-fg/85"
+                        ? "border-(color:--amber) bg-(color:--amberA) text-fg/85"
                         : "border-accent bg-accent/10 text-fg/85"
                     }`}
                   >

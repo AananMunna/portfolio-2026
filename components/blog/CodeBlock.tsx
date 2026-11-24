@@ -13,10 +13,10 @@ function highlightLine(line: string): ReactNode[] {
     const cls = m[1]
       ? "text-muted/70 italic"
       : m[2]
-      ? "text-amber-300"
+      ? "text-(color:--amber)"
       : m[3]
       ? "text-accent"
-      : "text-cyan-300";
+      : "text-(color:--cyan)";
     out.push(
       <span key={m.index} className={cls}>
         {m[0]}

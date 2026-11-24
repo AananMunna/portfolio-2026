@@ -141,7 +141,7 @@ export default function ContactDetails() {
               className={`${inputClass} appearance-none`}
             >
               {inquiryTypes.map((t) => (
-                <option key={t} value={t} className="bg-[#070b16]">
+                <option key={t} value={t} className="bg-surface text-fg">
                   {t}
                 </option>
               ))}

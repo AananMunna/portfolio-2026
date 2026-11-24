@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
+import ThemeToggle from "./ThemeToggle";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Home,
@@ -233,7 +234,7 @@ export default function Navbar() {
           opacity: scrolled ? 0 : 1,
         }}
         transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-        className="fixed top-0 left-0 w-full z-50 pointer-events-none mix-blend-difference"
+        className="nav-blend fixed top-0 left-0 w-full z-50 pointer-events-none mix-blend-difference"
       >
         <div className="flex items-center justify-between px-5 sm:px-8 lg:px-10 py-5 lg:py-5">
           <button
@@ -259,13 +260,16 @@ export default function Navbar() {
               href="https://drive.google.com/file/d/17lmURlHIjW8VCMQNHw-ddDGYOg_t6iGM/view"
               target="_blank"
               rel="noopener noreferrer"
-              className="ml-5 px-4 py-2 border border-accent/70 text-accent text-[11px] font-mono uppercase tracking-[0.16em] rounded-sm hover:bg-accent hover:text-black transition-all duration-300 hover-target"
+              className="ml-5 px-4 py-2 border border-accent/70 text-accent text-[11px] font-mono uppercase tracking-[0.16em] rounded-sm hover:bg-accent hover:text-bg transition-all duration-300 hover-target"
             >
               Resume
             </a>
+            <ThemeToggle className="ml-3" />
           </div>
 
-          <button
+          <div className="lg:hidden pointer-events-auto flex items-center gap-2">
+            <ThemeToggle />
+            <button
             onClick={() => {
               setFromDesktop(false);
               setIsMenuOpen(true);
@@ -275,6 +279,7 @@ export default function Navbar() {
             <span className="w-5 h-[1.5px] bg-white rounded-full" />
             <span className="w-3.5 h-[1.5px] bg-white rounded-full" />
           </button>
+          </div>
         </div>
       </motion.nav>
 
@@ -290,7 +295,7 @@ export default function Navbar() {
               stiffness: 400,
               damping: 35,
             }}
-            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none"
+            className="keep-white fixed bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none"
           >
             <div className="pointer-events-auto relative">
               {/* Soft ambient glow */}

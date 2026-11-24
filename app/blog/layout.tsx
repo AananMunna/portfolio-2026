@@ -1,5 +1,6 @@
 import Link from "next/link";
 import CustomCursor from "@/components/CustomCursor";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export default function BlogLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -20,6 +21,7 @@ export default function BlogLayout({ children }: { children: React.ReactNode }) 
             <Link href="/#get-in-touch" className="hover-target text-fg/70 transition-colors hover:text-accent">
               Contact
             </Link>
+            <ThemeToggle />
           </nav>
         </div>
       </header>

@@ -96,3 +96,88 @@
 .animate-blink {
   animation: blink 0.7s step-end infinite;
 }
+
+/* ───────────────────────── THEME ─────────────────────────
+   Dark is the default (the variables in :root above).
+   Light mode is set with <html data-theme="light">.
+   Tailwind's `white` is remapped to ink in light mode, so every existing
+   border-white/10, text-white/50, bg-white/[0.03] flips automatically.
+   Anything that must stay truly white (cursor, dock) gets .keep-white. */
+:root {
+  --glow: rgba(0, 255, 136, 0.2);
+  --vignette: rgba(3, 5, 12, 0.55);
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --void:      #f6f4ef;   /* warm paper */
+  --void2:     #ffffff;   /* cards */
+  --void3:     #efece5;
+  --dim:       #ddd8cc;   /* borders */
+  --dimmer:    #ebe7de;
+
+  --phosphor:  #067a47;   /* deep emerald, readable on paper */
+  --phosphor2: #05683b;
+  --phosphor3: #cfe6da;
+  --phosphorA: rgba(6, 122, 71, 0.07);
+
+  --amber:     #a85f00;
+  --amber2:    #8a4f00;
+  --amberA:    rgba(168, 95, 0, 0.1);
+
+  --cyan:      #0a6f93;
+  --cyanA:     rgba(10, 111, 147, 0.08);
+
+  --text:      #171a22;
+  --text2:     #5b6372;
+  --text3:     #a2a8b4;
+
+  --glow: rgba(6, 122, 71, 0.12);
+  --vignette: rgba(80, 66, 40, 0.1);
+
+  --color-white: #151923;
+}
+
+:root:not([data-theme="light"]) {
+  --amber: #ffb800;
+  --amberA: rgba(255, 184, 0, 0.08);
+  --cyan: #00e5ff;
+}
+
+.keep-white {
+  --color-white: #ffffff;
+}
+
+[data-theme="light"] .noise-bg {
+  opacity: 0.025;
+}
+
+/* In light mode the top bar can't use blend-difference (it would invert the
+   accent colours), so it becomes a frosted bar instead. */
+[data-theme="light"] .nav-blend {
+  mix-blend-mode: normal;
+  background: color-mix(in srgb, var(--void) 78%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--dim);
+}
+
+/* Soft cards in light mode */
+[data-theme="light"] .shadow-2xl {
+  --tw-shadow-color: rgba(23, 26, 34, 0.18);
+}
+
+/* theme toggle icons: show the mode you will switch TO */
+.theme-moon { display: none; }
+[data-theme="light"] .theme-sun { display: none; }
+[data-theme="light"] .theme-moon { display: block; }
+
+/* brief fade when switching */
+.theme-anim,
+.theme-anim *,
+.theme-anim *::before,
+.theme-anim *::after {
+  transition: background-color 0.35s ease, color 0.35s ease, border-color 0.35s ease, fill 0.35s ease !important;
+}

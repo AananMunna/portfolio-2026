@@ -68,7 +68,7 @@ export default function Hero() {
         className="pointer-events-none absolute inset-0 z-0"
         style={{
           background:
-            "radial-gradient(ellipse 80% 70% at 50% 45%, transparent 40%, rgba(3,5,12,0.55))",
+            "radial-gradient(ellipse 80% 70% at 50% 45%, transparent 40%, var(--vignette))",
         }}
       />
 
@@ -105,7 +105,7 @@ export default function Hero() {
                     delay: 0.32 + i * 0.045,
                     ease: [0.16, 1, 0.3, 1],
                   }}
-                  className="inline-block text-[clamp(3.2rem,13vw,7.8rem)] italic text-accent drop-shadow-[0_0_40px_rgba(0,255,136,0.2)]"
+                  className="inline-block text-[clamp(3.2rem,13vw,7.8rem)] italic text-accent drop-shadow-[0_0_40px_var(--glow)]"
                 >
                   {letter}
                 </motion.span>

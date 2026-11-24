@@ -254,7 +254,7 @@ export default function StackMatrix() {
               </pre>
             </div>
 
-            <div className="mt-4 rounded-2xl border border-white/10 bg-black/40 p-4 font-mono text-xs leading-relaxed">
+            <div className="mt-4 rounded-2xl border border-white/10 bg-surface p-4 font-mono text-xs leading-relaxed">
               <p className="text-muted">
                 <span className="text-accent">$</span> npx tsc --noEmit
               </p>
