@@ -551,4 +551,140 @@ export const projects: Project[] = [
       },
     ],
   },
+  {
+  id: 8,
+  title: 'Eqrah',
+  category: 'EdTech SaaS',
+  image: '/images/eqrah.webp', // use the screenshot you shared
+  year: '2025–2026',
+  description:
+    'Multi-tenant school management SaaS. I built the student list, fee collection, documents, ID cards, every certificate type, and the majority of the frontend, plus contributed REST APIs on the Node/Express backend.',
+  link: '',          // no public live link
+  github: '',        // private
+  tags: ['next.js', 'react', 'redux', 'typescript', 'node.js', 'express', 'mongodb', 'ant design'],
+
+  tagline: 'Complete educational management system for schools.',
+  role: 'Front-end Developer (major contribution) + Backend APIs',
+  type: 'Multi-tenant EdTech SaaS',
+  status: 'Live',
+
+  overview:
+    'Eqrah is an enterprise-grade, multi-tenant Educational Management System used by real schools. It covers the full academic and operational lifecycle — students, teachers, exams, attendance, fee collection, certificates, ID cards, HR, hostel, and finance. I owned large parts of the frontend (student module, fee collection, documents, ID cards, all certificate types) and also wrote and maintained REST APIs on the backend.',
+
+  problem:
+    'Schools in Bangladesh still run on spreadsheets, paper, and disconnected tools. Managing students, fees, exams, attendance, certificates and day-to-day operations across multiple institutions requires a secure, multi-tenant system with clear roles and real workflows.',
+
+  solution:
+    'We built a multi-tenant SaaS platform with isolated school data, role-based access, and modules that map to real school processes. I focused on the React/Next.js frontend for the most used operational screens and contributed to the Express + MongoDB APIs that power them.',
+
+  features: [
+    {
+      title: 'Student management',
+      desc: 'Enrollment, profiles, search, promotion, documents and full student lifecycle screens.',
+    },
+    {
+      title: 'Fee collection',
+      desc: 'Fee heads, collection, outstanding tracking, late fines, receipts and daily reports.',
+    },
+    {
+      title: 'ID cards & certificates',
+      desc: 'Student ID cards with QR, admit cards, transfer certificates, experience letters, testimonials and bulk generation.',
+    },
+    {
+      title: 'Examination & results',
+      desc: 'Mark entry, tabulation, result publishing, hall tickets and performance reports.',
+    },
+    {
+      title: 'Attendance system',
+      desc: 'Daily and exam attendance, leave management and related reports.',
+    },
+    {
+      title: 'Multi-tenant architecture',
+      desc: 'Central + tenant databases, tenant-aware APIs and school-level isolation.',
+    },
+    {
+      title: 'Admin dashboard',
+      desc: 'Overview KPIs, attendance ring, income/expense, account charts, calendar and notice board.',
+    },
+  ],
+
+  challenges: [
+    {
+      challenge: 'Building dense operational screens (fee collection, mark entry, certificates) that stay fast and usable for non-technical school staff.',
+      solution: 'Focused on clear information hierarchy, consistent form patterns, and progressive disclosure so common tasks stay short.',
+    },
+    {
+      challenge: 'Keeping frontend state and multi-tenant API contracts in sync across many modules.',
+      solution: 'Used Redux Toolkit + RTK Query with careful cache invalidation and tenant headers on every request.',
+    },
+    {
+      challenge: 'Generating print-ready ID cards and certificates that look professional and include QR codes.',
+      solution: 'Built dedicated print layouts and generation flows with QR support and batch options.',
+    },
+  ],
+},
+{
+  id: 9,
+  title: 'Mohidul',
+  category: 'Client Portfolio',
+  image: '/images/mohidul.webp', // add a real screenshot of the site
+  year: '2025',
+  description:
+    'Personal portfolio for a professional UI/UX designer. Built from scratch with Next.js so he can showcase his work and grow his design business.',
+  link: 'https://www.mohidul.me/',
+  github: '', // private / client project
+  tags: ['next.js', 'react', 'typescript', 'tailwind', 'framer motion'],
+
+  tagline: 'Clean portfolio for a UI/UX designer running his own practice.',
+  role: 'Front-end Developer',
+  type: 'Client portfolio website',
+  status: 'Live',
+
+  overview:
+    'Mohidul is a professional portfolio website built for a skilled UI/UX designer who came to Al Jaami Technologies to establish his online presence and support his design business. The site focuses on clean presentation of his work, clear storytelling, and a fast, polished experience that reflects his design standards.',
+
+  problem:
+    'As a UI/UX designer starting and growing his own practice, he needed a portfolio that felt as refined as the work he delivers for clients — not a generic template. It had to load fast, look sharp on every device, and make it easy for potential clients to understand his expertise and get in touch.',
+
+  solution:
+    'I built a custom Next.js portfolio with a strong visual hierarchy, smooth motion, and carefully structured project case studies. The design system and interactions were kept intentionally restrained so the designer’s own work remains the focus.',
+
+  features: [
+    {
+      title: 'Project case studies',
+      desc: 'Dedicated pages that present process, decisions and final outcomes clearly.',
+    },
+    {
+      title: 'Clean visual hierarchy',
+      desc: 'Typography, spacing and layout that feel intentional and design-led.',
+    },
+    {
+      title: 'Smooth interactions',
+      desc: 'Subtle Framer Motion transitions that support the content without distraction.',
+    },
+    {
+      title: 'Fully responsive',
+      desc: 'Looks and works properly from mobile to large desktop screens.',
+    },
+    {
+      title: 'Fast & lightweight',
+      desc: 'Next.js App Router with optimized images and clean performance.',
+    },
+    {
+      title: 'Easy contact path',
+      desc: 'Clear calls-to-action so potential clients can reach him quickly.',
+    },
+  ],
+
+  challenges: [
+    {
+      challenge: 'Matching the quality bar of a professional UI/UX designer’s own standards.',
+      solution: 'Kept the interface minimal and precise — strong hierarchy, consistent spacing, and zero unnecessary decoration so his work stays the hero.',
+    },
+    {
+      challenge: 'Making case studies readable and scannable without feeling long or heavy.',
+      solution: 'Structured each project page with clear sections (problem → process → outcome) and restrained motion.',
+    },
+  ],
+},
 ];
