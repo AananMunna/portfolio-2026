@@ -15,7 +15,7 @@ const experiences = [
     location: "Onsite · Kushtia, Bangladesh",
     logo: "/images/aljaami.jpg", // ✅ correct path
     description:
-      "Full ownership of the product stack — from data modeling and REST API design to React UI and state management. I take features from idea to production, ensuring every layer is solid, maintainable, and ready for real users.",
+      "Worked on a school management product, Eqrah. I designed data models, wrote REST APIs, and built the React screens that used them. Most of my time went into taking features from a rough idea to something real users could open.",
     tech: [
       "MongoDB",
       "Express.js",
@@ -36,7 +36,7 @@ const experiences = [
     location: "Hybrid, Bangladesh",
     logo: "/images/codecarebd.jpg", // ✅ correct path
     description:
-      "Turned high-fidelity Figma designs into production React and Next.js interfaces. Focused on clean component architecture, performance, and pixel-level accuracy under tight delivery cycles.",
+      "Turned Figma designs into React and Next.js pages. I spent a lot of time on spacing, responsiveness and reusable components, usually on tight deadlines.",
     tech: [
       "React",
       "Next.js",
@@ -46,6 +46,11 @@ const experiences = [
       "Figma",
     ],
   },
+];
+
+const featured = [
+  { name: "CourierGo", kind: "Logistics Platform" },
+  { name: "RentNest", kind: "Rental Marketplace" },
 ];
 
 export default function Experience() {
@@ -142,6 +147,29 @@ export default function Experience() {
                     </span>
                   ))}
                 </div>
+
+                {/* Featured projects (first role only) */}
+                {index === 0 && (
+                  <div className="mt-8">
+                    <p className="mb-3 font-mono text-[11px] uppercase tracking-widest text-muted">
+                      Featured projects
+                    </p>
+                    <div className="flex flex-wrap gap-3">
+                      {featured.map((f) => (
+                        <a
+                          key={f.name}
+                          href="#work"
+                          className="hover-target rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 transition-colors hover:border-accent/40"
+                        >
+                          <span className="block text-fg">{f.name}</span>
+                          <span className="font-mono text-[11px] uppercase tracking-wider text-muted">
+                            {f.kind} · View case →
+                          </span>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Divider */}
                 {index !== experiences.length - 1 && (

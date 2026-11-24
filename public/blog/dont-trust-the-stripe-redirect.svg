@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#070b16"/>
+      <stop offset="1" stop-color="#1a1408"/>
+    </linearGradient>
+    <marker id="ag" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#00ff88"/>
+    </marker>
+    <marker id="aa" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#ffb800"/>
+    </marker>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <g stroke="#172038" stroke-width="1">
+    <path d="M0 105H1200M0 210H1200M0 315H1200M0 420H1200M0 525H1200"/>
+    <path d="M150 0V630M300 0V630M450 0V630M600 0V630M750 0V630M900 0V630M1050 0V630"/>
+  </g>
+  <g font-family="monospace" font-size="26" text-anchor="middle" fill="#ccdae8">
+    <rect x="90" y="250" width="240" height="110" rx="16" fill="#0b1120" stroke="#2a3d58"/>
+    <text x="210" y="312">Browser</text>
+    <rect x="480" y="90" width="240" height="110" rx="16" fill="#0b1120" stroke="#ffb800" stroke-width="2"/>
+    <text x="600" y="152" fill="#ffb800">Stripe</text>
+    <rect x="870" y="250" width="240" height="110" rx="16" fill="#00331a" stroke="#00ff88" stroke-width="2"/>
+    <text x="990" y="312" fill="#00ff88">Our server</text>
+  </g>
+  <g fill="none" stroke-width="3">
+    <path d="M300 250 C 380 190, 420 160, 470 150" stroke="#6a7f98" stroke-dasharray="10 8"/>
+    <path d="M730 150 C 800 170, 850 220, 920 245" stroke="#00ff88" marker-end="url(#ag)"/>
+    <path d="M335 330 L 860 330" stroke="#ffb800" stroke-dasharray="4 10" marker-end="url(#aa)"/>
+  </g>
+  <g font-family="monospace" font-size="20">
+    <text x="760" y="165" fill="#00ff88" transform="rotate(25 760 165)">signed webhook ✓</text>
+    <text x="500" y="365" fill="#ffb800">redirect (can't be trusted)</text>
+  </g>
+  <text x="70" y="580" font-family="monospace" font-size="22" fill="#ffb800">RentNest / payments</text>
+</svg>

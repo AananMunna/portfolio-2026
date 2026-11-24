@@ -1,7 +1,4 @@
-/**
- * Project data — single source of truth for gallery + detail view.
- * Written to read like real shipped products for recruiters.
- */
+/** Project data — single source of truth for gallery + detail view. */
 
 export interface Feature {
   title: string;
@@ -43,12 +40,12 @@ export const projects: Project[] = [
     image: '/images/courier.png', // add a real screenshot
     year: '2025',
     description:
-      'A full courier & logistics platform with customers, riders, and admins — real booking, tracking, bKash payments, and a production-style REST API.',
+      'A courier platform I built end to end. Customers book parcels, admins assign riders, riders update delivery status, and anyone can track a parcel with a code. Payments through bKash.',
     link: 'https://couriergo.vercel.app/',
     github: 'https://github.com/AananMunna/Courier-Logistics-Platform-Frontend',
     tags: ['react', 'express', 'mongodb', 'tailwind'], // or extend tags if your UI supports next/typescript/prisma etc.
 
-    tagline: 'Book, assign, deliver, and track parcels — a real multi-role logistics system.',
+    tagline: 'Book a parcel, assign a rider, track it to the door.',
     role: 'Full-stack Developer',
     type: 'Full-stack logistics platform',
     status: 'Live',
@@ -143,12 +140,12 @@ export const projects: Project[] = [
     image: '/images/rent.jpg', // Update with your actual screenshot path
     year: '2026',
     description:
-      'A full-stack rental property marketplace featuring multi-role dashboards, Stripe checkout, rental request state machine, and a secure Next.js 16 App Router frontend.',
+      'A rental marketplace where landlords list properties and tenants send requests and pay through Stripe. Next.js 16 frontend, Express and Prisma backend.',
     link: 'https://rentnest-frontend.vercel.app/', // Update with your deployment link
     github: 'https://github.com/AananMunna/RentNest', // Update with your GitHub repo link
     tags: ['next.js', 'react', 'typescript', 'tailwind', 'express', 'postgresql', 'prisma', 'stripe'],
 
-    tagline: 'Find, list, request, and securely pay for rental properties — a complete multi-role real estate marketplace.',
+    tagline: 'Find a place, request it, pay for it.',
     role: 'Full-stack Developer',
     type: 'Full-stack rental property marketplace',
     status: 'Live',

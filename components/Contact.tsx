@@ -33,8 +33,8 @@ export default function Contact() {
         </h2>
 
         <p className="max-w-md mx-auto mb-8 sm:mb-10 text-bg/80 font-medium text-sm sm:text-base px-4">
-          I respond within 24 hours. Always. If you&apos;re building something
-          and need someone who ships — let&apos;s talk.
+          I usually reply within a day. If you have a project, a role, or
+          just a question, send me a message.
         </p>
 
         {/* Email — mailto on click, tooltip on hover */}
@@ -93,7 +93,10 @@ export default function Contact() {
           </a>
         </div>
         <div className="text-center sm:text-right">
-          <p>© 2026 Aanan Munna</p>
+          <a href="#" className="hover-target hover:underline">
+            Back to top ↑
+          </a>
+          <p className="mt-1">© 2026 Aanan Munna</p>
           <p>All Rights Reserved</p>
         </div>
       </div>

@@ -22,7 +22,8 @@ const syneMono = Syne_Mono({
 
 export const metadata: Metadata = {
   title: 'Aanan | Full Stack Developer',
-  description: 'A cutting-edge front-end developer portfolio',
+  description:
+    'Full Stack Developer building production SaaS, marketplace and logistics platforms with Next.js, React, Node.js, PostgreSQL and MongoDB.',
   icons: {
     icon: [
       { url: '/favicon.ico', sizes: 'any' },
@@ -36,7 +37,14 @@ export const metadata: Metadata = {
 
 export default function RootLayout({children}: {children: React.ReactNode}) {
   return (
-    <html lang="en" className={`${shareTechMono.variable} ${syne.variable} ${syneMono.variable}`}>
+    <html lang="en" suppressHydrationWarning className={`${shareTechMono.variable} ${syne.variable} ${syneMono.variable}`}>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var t=localStorage.getItem("theme");document.documentElement.dataset.theme=t==="light"?"light":"dark"}catch(e){document.documentElement.dataset.theme="dark"}`,
+          }}
+        />
+      </head>
       <body suppressHydrationWarning>
         <SmoothScroll>
           <div className="noise-bg"></div>

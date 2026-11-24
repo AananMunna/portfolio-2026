@@ -229,7 +229,7 @@ ABOUT AANAN MUNNA
 IDENTITY
 - Full name: Aanan Munna
 - Role: Front-End Developer (Full-Stack Capable)
-- Location: Dhaka, Bangladesh · Timezone: GMT+6
+- Location: Kushtia, Bangladesh · Timezone: GMT+6
 - Languages: Bangla (native), English (professional working proficiency)
 
 EXPERIENCE
