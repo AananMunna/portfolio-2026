@@ -1,25 +1,55 @@
 "use client";
 
 import { motion } from "motion/react";
+import { useState } from "react";
 
 type Level = "Expert" | "Advanced" | "Intermediate";
 
-type Group = {
-  title: string;
-  items: { name: string; level: Level }[];
+const LEVEL_WIDTH: Record<Level, string> = {
+  Expert: "w-full",
+  Advanced: "w-3/4",
+  Intermediate: "w-1/2",
+};
+
+const LEVEL_TEXT: Record<Level, string> = {
+  Expert: "text-accent",
+  Advanced: "text-cyan-300",
+  Intermediate: "text-fg/50",
+};
+
+const LEVEL_BAR: Record<Level, string> = {
+  Expert: "bg-accent",
+  Advanced: "bg-cyan-300",
+  Intermediate: "bg-white/40",
 };
 
 /**
- * Levels for items that already appear in the bonsai (TechSkills.tsx) are derived
- * from the same numbers: 90+ = Expert, 80–89 = Advanced, below = Intermediate.
- * Items marked "review" were not in the bonsai — adjust them to your honest level.
+ * Levels for items that also appeared in the old bonsai section come from the same
+ * numbers (90+ Expert, 80–89 Advanced). Lines marked `// review` were not in the
+ * bonsai: set them to your honest level.
  */
-const groups: Group[] = [
+const currentStack = [
+  "TypeScript",
+  "React",
+  "Next.js",
+  "Tailwind CSS",
+  "Node.js",
+  "Express.js",
+  "PostgreSQL",
+  "Prisma",
+  "MongoDB",
+  "Redis",
+  "Stripe",
+  "Git",
+  "GitHub Actions",
+];
+
+const groups: { title: string; items: { name: string; level: Level }[] }[] = [
   {
     title: "Languages",
     items: [
-      { name: "JavaScript ES6+", level: "Expert" },
       { name: "TypeScript", level: "Advanced" },
+      { name: "JavaScript ES6+", level: "Expert" },
     ],
   },
   {
@@ -52,7 +82,7 @@ const groups: Group[] = [
   {
     title: "Security & Access",
     items: [
-      { name: "JWT Auth", level: "Advanced" },
+      { name: "JWT", level: "Advanced" },
       { name: "Role-based Access", level: "Advanced" },
     ],
   },
@@ -68,65 +98,199 @@ const groups: Group[] = [
     items: [
       { name: "Vercel", level: "Advanced" },
       { name: "Netlify", level: "Advanced" },
-      { name: "GitHub Actions / CI/CD", level: "Advanced" },
+      { name: "CI/CD Pipelines", level: "Advanced" },
     ],
   },
   {
     title: "Tooling & Workflow",
     items: [
       { name: "Git", level: "Expert" },
-      { name: "GitHub", level: "Expert" },
+      { name: "GitHub Actions", level: "Advanced" },
       { name: "Figma", level: "Intermediate" },
     ],
   },
 ];
 
-const levelStyle: Record<Level, string> = {
-  Expert: "border-accent/40 bg-accent/10 text-accent",
-  Advanced: "border-cyan-400/30 bg-cyan-400/10 text-cyan-300",
-  Intermediate: "border-white/15 bg-white/5 text-fg/60",
-};
+const files: { name: string; code: string }[] = [
+  {
+    name: "types.ts",
+    code: `export type ShipmentStatus =
+  | "PENDING"
+  | "ASSIGNED"
+  | "PICKED_UP"
+  | "IN_TRANSIT"
+  | "OUT_FOR_DELIVERY"
+  | "DELIVERED"
+  | "FAILED";
+
+export interface Shipment {
+  id: string;
+  trackingCode: string;
+  status: ShipmentStatus;
+  riderId: string | null;
+}`,
+  },
+  {
+    name: "page.tsx",
+    code: `export default async function TrackPage({
+  params,
+}: {
+  params: Promise<{ code: string }>;
+}) {
+  const { code } = await params;
+  const shipment = await getShipment(code);
+
+  if (!shipment) notFound();
+
+  return <Timeline events={shipment.events} />;
+}`,
+  },
+  {
+    name: "server.ts",
+    code: `router.patch("/:id/assign", requireRole("ADMIN"), async (req, res) => {
+  const { riderId } = assignSchema.parse(req.body);
+
+  const result = await prisma.shipment.updateMany({
+    where: { id: req.params.id, status: "PENDING" },
+    data: { riderId, status: "ASSIGNED" },
+  });
+
+  if (result.count === 0) throw new ConflictError("Already assigned");
+  res.json({ ok: true });
+});`,
+  },
+  {
+    name: "schema.prisma",
+    code: `model Shipment {
+  id           String         @id @default(cuid())
+  trackingCode String         @unique
+  status       ShipmentStatus @default(PENDING)
+  riderId      String?
+  events       TrackingEvent[]
+  createdAt    DateTime       @default(now())
+}`,
+  },
+  {
+    name: "ci.yml",
+    code: `name: CI
+on: [push, pull_request]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npm run build`,
+  },
+];
 
 export default function StackMatrix() {
+  const [active, setActive] = useState(0);
+  const lines = files[active].code.split("\n");
+
   return (
     <section className="relative z-20 mx-auto max-w-7xl bg-bg px-4 py-24 sm:px-8">
-      <div className="grid grid-cols-1 gap-12 md:grid-cols-12 md:gap-20">
-        <div className="md:col-span-4">
-          <h2 className="font-display text-4xl font-bold uppercase tracking-tighter sm:text-6xl md:sticky md:top-32">
-            What I <br />
-            <span className="italic text-accent">work with</span>
-          </h2>
-          <p className="mt-6 max-w-xs font-mono text-xs uppercase leading-relaxed tracking-widest text-muted">
-            Most used: React, Next.js, Node.js, MongoDB, PostgreSQL
-          </p>
-        </div>
+      <h2 className="font-display text-4xl font-bold uppercase tracking-tighter sm:text-6xl">
+        Technical <span className="italic text-accent">Stack</span>
+      </h2>
 
-        <div className="grid grid-cols-1 gap-x-10 gap-y-10 sm:grid-cols-2 md:col-span-8">
+      {/* Current stack */}
+      <div className="mt-10">
+        <p className="mb-4 font-mono text-xs uppercase tracking-widest text-muted">
+          Current stack
+        </p>
+        <div className="flex flex-wrap gap-2.5">
+          {currentStack.map((t) => (
+            <span
+              key={t}
+              className="rounded-full border border-white/10 px-3.5 py-1.5 font-mono text-xs text-fg/70 transition-colors hover:border-accent/40 hover:text-accent"
+            >
+              {t}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-16 grid grid-cols-1 gap-10 lg:grid-cols-12">
+        {/* Categories */}
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:col-span-7">
           {groups.map((group, gi) => (
             <motion.div
               key={group.title}
-              initial={{ opacity: 0, y: 24 }}
+              initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-10%" }}
-              transition={{ duration: 0.6, delay: (gi % 2) * 0.1, ease: [0.16, 1, 0.3, 1] }}
+              viewport={{ once: true, margin: "-8%" }}
+              transition={{ duration: 0.5, delay: (gi % 2) * 0.08, ease: [0.16, 1, 0.3, 1] }}
+              className="rounded-2xl border border-white/10 bg-white/[0.02] p-5"
             >
-              <h3 className="mb-4 border-b border-white/10 pb-3 font-mono text-xs uppercase tracking-widest text-accent">
+              <h3 className="mb-4 font-mono text-xs uppercase tracking-widest text-accent">
                 {group.title}
               </h3>
-              <ul className="space-y-2.5">
+              <ul className="space-y-3">
                 {group.items.map((item) => (
-                  <li key={item.name} className="flex items-center justify-between gap-4">
-                    <span className="text-fg/80">{item.name}</span>
-                    <span
-                      className={`rounded-full border px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-wider ${levelStyle[item.level]}`}
-                    >
-                      {item.level}
-                    </span>
+                  <li key={item.name}>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-fg/85">{item.name}</span>
+                      <span className={`font-mono text-[10px] uppercase tracking-wider ${LEVEL_TEXT[item.level]}`}>
+                        {item.level}
+                      </span>
+                    </div>
+                    <div className="mt-1.5 h-[3px] w-full rounded-full bg-white/10">
+                      <div className={`h-full rounded-full ${LEVEL_WIDTH[item.level]} ${LEVEL_BAR[item.level]}`} />
+                    </div>
                   </li>
                 ))}
               </ul>
             </motion.div>
           ))}
+        </div>
+
+        {/* Editor + terminal */}
+        <div className="lg:col-span-5">
+          <div className="lg:sticky lg:top-28">
+            <div className="overflow-hidden rounded-2xl border border-white/10 bg-surface">
+              <div className="flex items-center gap-1.5 border-b border-white/10 px-4 py-3">
+                <span className="h-2.5 w-2.5 rounded-full bg-red-400/70" />
+                <span className="h-2.5 w-2.5 rounded-full bg-amber-300/70" />
+                <span className="h-2.5 w-2.5 rounded-full bg-accent/70" />
+              </div>
+
+              <div className="flex overflow-x-auto border-b border-white/10">
+                {files.map((f, i) => (
+                  <button
+                    key={f.name}
+                    onClick={() => setActive(i)}
+                    className={`hover-target whitespace-nowrap border-r border-white/10 px-4 py-2.5 font-mono text-xs transition-colors ${
+                      i === active ? "bg-white/[0.05] text-accent" : "text-muted hover:text-fg"
+                    }`}
+                  >
+                    {f.name}
+                  </button>
+                ))}
+              </div>
+
+              <pre className="max-h-[340px] overflow-auto p-4 font-mono text-[12.5px] leading-relaxed text-fg/80">
+                {lines.map((line, i) => (
+                  <div key={i} className="flex">
+                    <span className="mr-4 w-5 shrink-0 select-none text-right text-muted/50">{i + 1}</span>
+                    <code className="whitespace-pre">{line || " "}</code>
+                  </div>
+                ))}
+              </pre>
+            </div>
+
+            <div className="mt-4 rounded-2xl border border-white/10 bg-black/40 p-4 font-mono text-xs leading-relaxed">
+              <p className="text-muted">
+                <span className="text-accent">$</span> npx tsc --noEmit
+              </p>
+              <p className="mt-1 text-accent">✓ Found 0 errors. Type check passed.</p>
+            </div>
+          </div>
         </div>
       </div>
     </section>
