@@ -296,261 +296,261 @@ export const projects: Project[] = [
     ],
   },
 
-  {
-    id: 3,
-    title: 'StudySync',
-    category: 'EdTech Platform',
-    image: '/images/studys.png',
-    year: '2024',
-    description:
-      'A full-stack platform that turns messy group assignments into structured, trackable, gamified teamwork with leaderboards and clear ownership.',
-    link: 'https://studysync-d270a.web.app/',
-    github: 'https://github.com/AananMunna/studySync',
-    tags: ['react', 'tailwind', 'express', 'mongodb'],
+  // {
+  //   id: 3,
+  //   title: 'StudySync',
+  //   category: 'EdTech Platform',
+  //   image: '/images/studys.png',
+  //   year: '2024',
+  //   description:
+  //     'A full-stack platform that turns messy group assignments into structured, trackable, gamified teamwork with leaderboards and clear ownership.',
+  //   link: 'https://studysync-d270a.web.app/',
+  //   github: 'https://github.com/AananMunna/studySync',
+  //   tags: ['react', 'tailwind', 'express', 'mongodb'],
 
-    tagline: 'Group assignments, finally organised — and a little competitive.',
-    role: 'Full-stack Developer',
-    type: 'Full-stack web application',
-    status: 'Live',
+  //   tagline: 'Group assignments, finally organised — and a little competitive.',
+  //   role: 'Full-stack Developer',
+  //   type: 'Full-stack web application',
+  //   status: 'Live',
 
-    overview:
-      'StudySync helps students manage group assignments with structure instead of chaos. It combines assignment ownership, progress tracking, and lightweight gamification so contribution is visible and motivation stays higher. I built the product end to end — UI, API, auth, and scoring logic.',
+  //   overview:
+  //     'StudySync helps students manage group assignments with structure instead of chaos. It combines assignment ownership, progress tracking, and lightweight gamification so contribution is visible and motivation stays higher. I built the product end to end — UI, API, auth, and scoring logic.',
 
-    problem:
-      'Group work usually lives in scattered chats, random files, and last-minute panic. Nobody is sure who owns what, progress is invisible, and consistent contribution is hard to measure or encourage.',
+  //   problem:
+  //     'Group work usually lives in scattered chats, random files, and last-minute panic. Nobody is sure who owns what, progress is invisible, and consistent contribution is hard to measure or encourage.',
 
-    solution:
-      'I created a single workspace for group assignments: clear ownership, trackable progress, and leaderboards that make steady work visible. The system runs on an Express + MongoDB backend with authenticated users and a React frontend focused on clarity and speed.',
+  //   solution:
+  //     'I created a single workspace for group assignments: clear ownership, trackable progress, and leaderboards that make steady work visible. The system runs on an Express + MongoDB backend with authenticated users and a React frontend focused on clarity and speed.',
 
-    features: [
-      {
-        title: 'Assignment management',
-        desc: 'Create, assign, and track group work from one structured board instead of scattered chats.',
-      },
-      {
-        title: 'Ownership & progress',
-        desc: 'Each task has clear responsibility and status, so teams always know what is moving.',
-      },
-      {
-        title: 'Gamified contribution',
-        desc: 'Points and progress make consistent work visible without turning the product into a gimmick.',
-      },
-      {
-        title: 'Leaderboards',
-        desc: 'Transparent rankings that reward steady participation and create healthy accountability.',
-      },
-      {
-        title: 'Authenticated accounts',
-        desc: 'Personal accounts so contribution, scores, and assignment history stay accurate.',
-      },
-      {
-        title: 'API-driven architecture',
-        desc: 'Express and MongoDB power users, assignments, and scoring with a clean data flow.',
-      },
-    ],
+  //   features: [
+  //     {
+  //       title: 'Assignment management',
+  //       desc: 'Create, assign, and track group work from one structured board instead of scattered chats.',
+  //     },
+  //     {
+  //       title: 'Ownership & progress',
+  //       desc: 'Each task has clear responsibility and status, so teams always know what is moving.',
+  //     },
+  //     {
+  //       title: 'Gamified contribution',
+  //       desc: 'Points and progress make consistent work visible without turning the product into a gimmick.',
+  //     },
+  //     {
+  //       title: 'Leaderboards',
+  //       desc: 'Transparent rankings that reward steady participation and create healthy accountability.',
+  //     },
+  //     {
+  //       title: 'Authenticated accounts',
+  //       desc: 'Personal accounts so contribution, scores, and assignment history stay accurate.',
+  //     },
+  //     {
+  //       title: 'API-driven architecture',
+  //       desc: 'Express and MongoDB power users, assignments, and scoring with a clean data flow.',
+  //     },
+  //   ],
 
-    challenges: [
-      {
-        challenge:
-          'Designing a scoring system that felt motivating without feeling unfair or easy to game.',
-        solution:
-          'Kept the rules simple, transparent, and tied to meaningful actions so rankings were easy to trust.',
-      },
-      {
-        challenge:
-          'Balancing feature depth with a UI students would actually understand quickly.',
-        solution:
-          'Prioritised a clear information hierarchy and removed friction from the most common flows: create, assign, update, check progress.',
-      },
-    ],
-  },
+  //   challenges: [
+  //     {
+  //       challenge:
+  //         'Designing a scoring system that felt motivating without feeling unfair or easy to game.',
+  //       solution:
+  //         'Kept the rules simple, transparent, and tied to meaningful actions so rankings were easy to trust.',
+  //     },
+  //     {
+  //       challenge:
+  //         'Balancing feature depth with a UI students would actually understand quickly.',
+  //       solution:
+  //         'Prioritised a clear information hierarchy and removed friction from the most common flows: create, assign, update, check progress.',
+  //     },
+  //   ],
+  // },
 
-  {
-    id: 4,
-    title: 'Garden',
-    category: 'Community Platform',
-    image: '/images/garden.png',
-    year: '2024',
-    description:
-      'A gardening community product with profile-style gardener highlights, motion-rich browsing, and a full backend for dynamic content.',
-    link: 'https://gardening-hub-a68ec.web.app/',
-    github: 'https://github.com/AananMunna/gardening-hub',
-    tags: ['tailwind', 'react', 'mongodb', 'express'],
+  // {
+  //   id: 4,
+  //   title: 'Garden',
+  //   category: 'Community Platform',
+  //   image: '/images/garden.png',
+  //   year: '2024',
+  //   description:
+  //     'A gardening community product with profile-style gardener highlights, motion-rich browsing, and a full backend for dynamic content.',
+  //   link: 'https://gardening-hub-a68ec.web.app/',
+  //   github: 'https://github.com/AananMunna/gardening-hub',
+  //   tags: ['tailwind', 'react', 'mongodb', 'express'],
 
-    tagline: 'A gardening community that feels like people, not a catalogue.',
-    role: 'Full-stack Developer',
-    type: 'Full-stack web application',
-    status: 'Live',
+  //   tagline: 'A gardening community that feels like people, not a catalogue.',
+  //   role: 'Full-stack Developer',
+  //   type: 'Full-stack web application',
+  //   status: 'Live',
 
-    overview:
-      'Garden is a community-oriented gardening platform focused on people and discovery. Instead of a static catalogue, it highlights gardeners through profile-style presentation, supported by smooth browsing interactions and a backend for dynamic content.',
+  //   overview:
+  //     'Garden is a community-oriented gardening platform focused on people and discovery. Instead of a static catalogue, it highlights gardeners through profile-style presentation, supported by smooth browsing interactions and a backend for dynamic content.',
 
-    problem:
-      'Many gardening sites feel like static product pages. Enthusiasts want to discover real people, real gardens, and a sense of community — not only lists of plants or tips with no personality.',
+  //   problem:
+  //     'Many gardening sites feel like static product pages. Enthusiasts want to discover real people, real gardens, and a sense of community — not only lists of plants or tips with no personality.',
 
-    solution:
-      'I built a visually rich community hub where gardeners are presented like profiles, content is browsable through smooth sliders, and motion adds life without hurting performance. Dynamic data is handled through an Express + MongoDB backend.',
+  //   solution:
+  //     'I built a visually rich community hub where gardeners are presented like profiles, content is browsable through smooth sliders, and motion adds life without hurting performance. Dynamic data is handled through an Express + MongoDB backend.',
 
-    features: [
-      {
-        title: 'Featured Gardener profiles',
-        desc: 'Profile-style cards that put real people and their gardens at the center of the experience.',
-      },
-      {
-        title: 'Discovery-focused browsing',
-        desc: 'Swiper-based sections that make exploring content feel fluid on both mobile and desktop.',
-      },
-      {
-        title: 'Motion with restraint',
-        desc: 'Lottie and interaction details used to add personality without making pages feel heavy.',
-      },
-      {
-        title: 'Dynamic backend',
-        desc: 'Express and MongoDB support community content that can change without rebuilding the UI.',
-      },
-      {
-        title: 'Responsive layout system',
-        desc: 'Mobile-first Tailwind interface that stays clean across screen sizes.',
-      },
-    ],
+  //   features: [
+  //     {
+  //       title: 'Featured Gardener profiles',
+  //       desc: 'Profile-style cards that put real people and their gardens at the center of the experience.',
+  //     },
+  //     {
+  //       title: 'Discovery-focused browsing',
+  //       desc: 'Swiper-based sections that make exploring content feel fluid on both mobile and desktop.',
+  //     },
+  //     {
+  //       title: 'Motion with restraint',
+  //       desc: 'Lottie and interaction details used to add personality without making pages feel heavy.',
+  //     },
+  //     {
+  //       title: 'Dynamic backend',
+  //       desc: 'Express and MongoDB support community content that can change without rebuilding the UI.',
+  //     },
+  //     {
+  //       title: 'Responsive layout system',
+  //       desc: 'Mobile-first Tailwind interface that stays clean across screen sizes.',
+  //     },
+  //   ],
 
-    challenges: [
-      {
-        challenge:
-          'Adding motion and visual richness without hurting load time or making the UI feel noisy.',
-        solution:
-          'Used lightweight animation approaches and kept motion purposeful — supporting hierarchy, not decorating every section.',
-      },
-      {
-        challenge:
-          'Making a community product feel human while still remaining structured and scalable.',
-        solution:
-          'Centered the UI around people and profiles first, then layered content discovery around that core idea.',
-      },
-    ],
-  },
+  //   challenges: [
+  //     {
+  //       challenge:
+  //         'Adding motion and visual richness without hurting load time or making the UI feel noisy.',
+  //       solution:
+  //         'Used lightweight animation approaches and kept motion purposeful — supporting hierarchy, not decorating every section.',
+  //     },
+  //     {
+  //       challenge:
+  //         'Making a community product feel human while still remaining structured and scalable.',
+  //       solution:
+  //         'Centered the UI around people and profiles first, then layered content discovery around that core idea.',
+  //     },
+  //   ],
+  // },
 
-  {
-    id: 5,
-    title: 'Othoba',
-    category: 'E-Commerce UI',
-    image: '/images/othoba.png',
-    year: '2024',
-    description:
-      'A high-fidelity frontend reconstruction of a real Bangladeshi e-commerce experience — built to match production-level UI density and polish.',
-    link: 'https://clone-othoba.vercel.app/',
-    github: 'https://github.com/AananMunna/othoba.com',
-    tags: ['react', 'tailwind'],
+  // {
+  //   id: 5,
+  //   title: 'Othoba',
+  //   category: 'E-Commerce UI',
+  //   image: '/images/othoba.png',
+  //   year: '2024',
+  //   description:
+  //     'A high-fidelity frontend reconstruction of a real Bangladeshi e-commerce experience — built to match production-level UI density and polish.',
+  //   link: 'https://clone-othoba.vercel.app/',
+  //   github: 'https://github.com/AananMunna/othoba.com',
+  //   tags: ['react', 'tailwind'],
 
-    tagline: 'A production-level e-commerce interface rebuilt with precision.',
-    role: 'Frontend Developer',
-    type: 'Frontend product reconstruction',
-    status: 'Live',
+  //   tagline: 'A production-level e-commerce interface rebuilt with precision.',
+  //   role: 'Frontend Developer',
+  //   type: 'Frontend product reconstruction',
+  //   status: 'Live',
 
-    overview:
-      'Othoba is a deliberate frontend reconstruction of a real Bangladeshi e-commerce interface. The goal was not a quick lookalike — it was to prove I can read a dense production UI and rebuild its structure, spacing, hierarchy, and component behavior with accuracy.',
+  //   overview:
+  //     'Othoba is a deliberate frontend reconstruction of a real Bangladeshi e-commerce interface. The goal was not a quick lookalike — it was to prove I can read a dense production UI and rebuild its structure, spacing, hierarchy, and component behavior with accuracy.',
 
-    problem:
-      'Most portfolio projects avoid real commercial UI complexity: crowded navigation, repeated product modules, mixed content density, and strict visual consistency. That gap makes it hard to show production frontend discipline.',
+  //   problem:
+  //     'Most portfolio projects avoid real commercial UI complexity: crowded navigation, repeated product modules, mixed content density, and strict visual consistency. That gap makes it hard to show production frontend discipline.',
 
-    solution:
-      'I rebuilt the interface from scratch in React and Tailwind with a component-driven structure. The focus was fidelity — layout systems, reusable cards, navigation patterns, and responsive behavior that hold up against a real retail site.',
+  //   solution:
+  //     'I rebuilt the interface from scratch in React and Tailwind with a component-driven structure. The focus was fidelity — layout systems, reusable cards, navigation patterns, and responsive behavior that hold up against a real retail site.',
 
-    features: [
-      {
-        title: 'High-fidelity layout system',
-        desc: 'Spacing, type scale, and section structure matched to the density of a real e-commerce storefront.',
-      },
-      {
-        title: 'Reusable commercial components',
-        desc: 'Product cards, banners, navigation blocks, and content sections built as consistent UI units.',
-      },
-      {
-        title: 'Responsive storefront behavior',
-        desc: 'Careful adaptation from mobile to wide desktop without breaking hierarchy or scanability.',
-      },
-      {
-        title: 'Production UI discipline',
-        desc: 'Treated visual polish and consistency as product requirements, not optional styling.',
-      },
-    ],
+  //   features: [
+  //     {
+  //       title: 'High-fidelity layout system',
+  //       desc: 'Spacing, type scale, and section structure matched to the density of a real e-commerce storefront.',
+  //     },
+  //     {
+  //       title: 'Reusable commercial components',
+  //       desc: 'Product cards, banners, navigation blocks, and content sections built as consistent UI units.',
+  //     },
+  //     {
+  //       title: 'Responsive storefront behavior',
+  //       desc: 'Careful adaptation from mobile to wide desktop without breaking hierarchy or scanability.',
+  //     },
+  //     {
+  //       title: 'Production UI discipline',
+  //       desc: 'Treated visual polish and consistency as product requirements, not optional styling.',
+  //     },
+  //   ],
 
-    challenges: [
-      {
-        challenge:
-          'Reproducing a dense retail interface without letting the codebase become messy.',
-        solution:
-          'Broke the page into reusable components early and standardised spacing and card patterns across sections.',
-      },
-      {
-        challenge:
-          'Keeping the rebuild responsive while preserving the original visual weight of the desktop experience.',
-        solution:
-          'Designed mobile adaptations around hierarchy first — what users need to scan — instead of simply shrinking desktop layouts.',
-      },
-    ],
-  },
+  //   challenges: [
+  //     {
+  //       challenge:
+  //         'Reproducing a dense retail interface without letting the codebase become messy.',
+  //       solution:
+  //         'Broke the page into reusable components early and standardised spacing and card patterns across sections.',
+  //     },
+  //     {
+  //       challenge:
+  //         'Keeping the rebuild responsive while preserving the original visual weight of the desktop experience.',
+  //       solution:
+  //         'Designed mobile adaptations around hierarchy first — what users need to scan — instead of simply shrinking desktop layouts.',
+  //     },
+  //   ],
+  // },
 
-  {
-    id: 6,
-    title: 'ValoDeal',
-    category: 'E-Commerce Deals',
-    image: '/images/valodeal.png',
-    year: '2024',
-    description:
-      'A deal-focused shopping product with fast filtering, in-place product inspection, and motion designed to feel smooth rather than decorative.',
-    link: 'https://valo-deal.vercel.app/',
-    github: 'https://github.com/AananMunna/ValoDeal',
-    tags: ['react', 'tailwind'],
+  // {
+  //   id: 6,
+  //   title: 'ValoDeal',
+  //   category: 'E-Commerce Deals',
+  //   image: '/images/valodeal.png',
+  //   year: '2024',
+  //   description:
+  //     'A deal-focused shopping product with fast filtering, in-place product inspection, and motion designed to feel smooth rather than decorative.',
+  //   link: 'https://valo-deal.vercel.app/',
+  //   github: 'https://github.com/AananMunna/ValoDeal',
+  //   tags: ['react', 'tailwind'],
 
-    tagline: 'Discount discovery with a fast, low-friction shopping flow.',
-    role: 'Frontend Developer',
-    type: 'E-commerce web application',
-    status: 'Live',
+  //   tagline: 'Discount discovery with a fast, low-friction shopping flow.',
+  //   role: 'Frontend Developer',
+  //   type: 'E-commerce web application',
+  //   status: 'Live',
 
-    overview:
-      'ValoDeal is a deal-driven shopping experience built for quick comparison and low-friction product inspection. Shoppers can filter offers, open details without losing context, and move through the catalogue with smooth, restrained motion.',
+  //   overview:
+  //     'ValoDeal is a deal-driven shopping experience built for quick comparison and low-friction product inspection. Shoppers can filter offers, open details without losing context, and move through the catalogue with smooth, restrained motion.',
 
-    problem:
-      'Deal platforms often fail in the details: slow browsing, weak filtering, and product views that break the user’s flow. When comparison is the job to be done, friction means missed decisions.',
+  //   problem:
+  //     'Deal platforms often fail in the details: slow browsing, weak filtering, and product views that break the user’s flow. When comparison is the job to be done, friction means missed decisions.',
 
-    solution:
-      'I focused on browsing speed and continuity — filterable listings, detail modals that preserve context, and transitions that make the interface feel responsive without becoming a distraction.',
+  //   solution:
+  //     'I focused on browsing speed and continuity — filterable listings, detail modals that preserve context, and transitions that make the interface feel responsive without becoming a distraction.',
 
-    features: [
-      {
-        title: 'Fast product filtering',
-        desc: 'Helps users narrow deals quickly instead of scrolling through noise.',
-      },
-      {
-        title: 'In-place detail modals',
-        desc: 'Inspect a product without leaving the listing or losing scroll position.',
-      },
-      {
-        title: 'Motion for clarity',
-        desc: 'Framer Motion transitions used to support flow and feedback, not decoration.',
-      },
-      {
-        title: 'Responsive shopping UI',
-        desc: 'A catalogue experience that stays usable and clean from mobile to desktop.',
-      },
-    ],
+  //   features: [
+  //     {
+  //       title: 'Fast product filtering',
+  //       desc: 'Helps users narrow deals quickly instead of scrolling through noise.',
+  //     },
+  //     {
+  //       title: 'In-place detail modals',
+  //       desc: 'Inspect a product without leaving the listing or losing scroll position.',
+  //     },
+  //     {
+  //       title: 'Motion for clarity',
+  //       desc: 'Framer Motion transitions used to support flow and feedback, not decoration.',
+  //     },
+  //     {
+  //       title: 'Responsive shopping UI',
+  //       desc: 'A catalogue experience that stays usable and clean from mobile to desktop.',
+  //     },
+  //   ],
 
-    challenges: [
-      {
-        challenge:
-          'Making filtering and detail views feel instant while keeping the interface simple.',
-        solution:
-          'Kept state local to the catalogue flow and avoided full-page navigations for product inspection.',
-      },
-      {
-        challenge:
-          'Using animation in an e-commerce context without making it feel gimmicky.',
-        solution:
-          'Limited motion to meaningful transitions — opening details, switching context, and soft feedback on interaction.',
-      },
-    ],
-  },
+  //   challenges: [
+  //     {
+  //       challenge:
+  //         'Making filtering and detail views feel instant while keeping the interface simple.',
+  //       solution:
+  //         'Kept state local to the catalogue flow and avoided full-page navigations for product inspection.',
+  //     },
+  //     {
+  //       challenge:
+  //         'Using animation in an e-commerce context without making it feel gimmicky.',
+  //       solution:
+  //         'Limited motion to meaningful transitions — opening details, switching context, and soft feedback on interaction.',
+  //     },
+  //   ],
+  // },
   {
   id: 8,
   title: 'Eqrah',

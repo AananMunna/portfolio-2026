@@ -18,28 +18,57 @@ import AvailabilityCTA from '@/components/AvailabilityCTA';
 
 export default function Home() {
   const [bootComplete, setBootComplete] = useState(false);
+  const [shouldShowBoot, setShouldShowBoot] = useState(false);
 
   useEffect(() => {
+    const hasBooted = sessionStorage.getItem('portfolio-booted');
+
+    if (hasBooted) {
+      // Already booted in this session → skip animation
+      setBootComplete(true);
+      setShouldShowBoot(false);
+    } else {
+      // First visit of the session → show BootSequence
+      setShouldShowBoot(true);
+    }
+
     window.scrollTo(0, 0);
   }, []);
 
+  const handleBootComplete = () => {
+    sessionStorage.setItem('portfolio-booted', 'true');
+    setBootComplete(true);
+  };
+
   return (
     <>
-      {!bootComplete && <BootSequence onComplete={() => setBootComplete(true)} />}
-      
-      <main className={`relative bg-bg min-h-screen transition-opacity duration-1000 ease-in-out ${bootComplete ? 'opacity-100' : 'opacity-0 h-screen overflow-hidden'}`}>
+      {shouldShowBoot && !bootComplete && (
+        <BootSequence onComplete={handleBootComplete} />
+      )}
+
+      <main
+        className={`relative bg-bg min-h-screen transition-opacity duration-1000 ease-in-out ${
+          bootComplete
+            ? 'opacity-100'
+            : 'opacity-0 h-screen overflow-hidden'
+        }`}
+      >
         <CustomCursor />
 
         {/* <div className="hidden md:block">
           <SystemPrefsDrawer />
         </div> */}
-        
+
         <Hero />
         <TechMarquee />
         <Experience />
-        <div id="skills"><StackMatrix /></div>
-        <div id="work"><Projects /></div>
-        <div id="gallery"><ProjectsGallery /></div>
+        <div id="skills">
+          <StackMatrix />
+        </div>
+        <div id="work">
+          <Projects />
+        </div>
+        {/* <div id="gallery"><ProjectsGallery /></div> */}
         <About />
         <Blog />
         <AvailabilityCTA />
