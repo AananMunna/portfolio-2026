@@ -11,6 +11,8 @@ const hits = new Map<string, number[]>();
 const WINDOW = 10 * 60 * 1000;
 const MAX = 5;
 
+const FALLBACK_EMAIL = "aananmunna420@gmail.com";
+
 const esc = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
@@ -29,7 +31,7 @@ export async function POST(req: Request) {
 
   const name = String(body.name ?? "").trim();
   const email = String(body.email ?? "").trim();
-  const subject = String(body.subject ?? "").trim();
+  const subject = String(body.subject ?? "").replace(/[\r\n]+/g, " ").trim();
   const type = String(body.type ?? "").trim();
   const message = String(body.message ?? "").trim();
 
@@ -57,7 +59,7 @@ export async function POST(req: Request) {
   if (!user || !pass || !to) {
     console.error("[contact] GMAIL_USER / GMAIL_APP_PASSWORD are not set");
     return NextResponse.json(
-      { ok: false, error: "Email service is not configured yet. Please email me directly." },
+      { ok: false, error: `Email service is not configured yet. Please email me at ${FALLBACK_EMAIL}.` },
       { status: 500 },
     );
   }
@@ -68,6 +70,10 @@ export async function POST(req: Request) {
       port: 465,
       secure: true,
       auth: { user, pass },
+      // fail fast instead of hanging a serverless function
+      connectionTimeout: 10_000,
+      greetingTimeout: 10_000,
+      socketTimeout: 15_000,
     });
 
     await transporter.sendMail({
@@ -89,7 +95,7 @@ export async function POST(req: Request) {
   } catch (err) {
     console.error("[contact] send failed", err);
     return NextResponse.json(
-      { ok: false, error: "Could not send your message. Please email me directly." },
+      { ok: false, error: `Could not send your message. Please email me at ${FALLBACK_EMAIL}.` },
       { status: 502 },
     );
   }
