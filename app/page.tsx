@@ -15,6 +15,7 @@ import TechMarquee from '@/components/TechMarquee';
 import StackMatrix from '@/components/StackMatrix';
 import Blog from '@/components/Blog';
 import AvailabilityCTA from '@/components/AvailabilityCTA';
+import { ProjectModalProvider } from '@/components/ProjectModalContext';
 
 export default function Home() {
   const [bootComplete, setBootComplete] = useState(false);
@@ -41,7 +42,7 @@ export default function Home() {
   };
 
   return (
-    <>
+    <ProjectModalProvider>
       {shouldShowBoot && !bootComplete && (
         <BootSequence onComplete={handleBootComplete} />
       )}
@@ -77,6 +78,6 @@ export default function Home() {
           <ChatAssistant />
         </div> */}
       </main>
-    </>
+    </ProjectModalProvider>
   );
 }

@@ -3,6 +3,7 @@
 import { motion } from "motion/react";
 import { ArrowUpRight, MapPin } from "lucide-react";
 import { projects } from "./Projectsdata";
+import { useProjectModal } from "./ProjectModalContext";
 
 const pick = (title: string) => projects.find((p) => p.title === title)!;
 
@@ -45,6 +46,8 @@ const scrollToWork = (e: React.MouseEvent) => {
 };
 
 export default function Experience() {
+  const { open } = useProjectModal();
+
   return (
     <section id="experience" className="section-tint relative z-20 bg-bg">
       <div className="mx-auto max-w-7xl px-5 py-24 sm:px-8 sm:py-32">
@@ -122,9 +125,7 @@ export default function Experience() {
 
                   <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                     {exp.shipped.map((p, i) => {
-                      const isEqrah = p.title === "Eqrah";
                       const hasLive = Boolean(p.link);
-                      const hasGithub = Boolean(p.github);
 
                       return (
                         <motion.div
@@ -135,12 +136,11 @@ export default function Experience() {
                           transition={{ duration: 0.7, delay: i * 0.1, ease }}
                           className="card card-hover group flex flex-col overflow-hidden !rounded-[1.25rem]"
                         >
-                          <a
-                            href={isEqrah ? `/work/${p.title.toLowerCase()}` : p.link}
-                            target={isEqrah ? undefined : "_blank"}
-                            rel={isEqrah ? undefined : "noopener noreferrer"}
-                            className="hover-target relative block aspect-[16/10] overflow-hidden border-b hairline bg-[var(--void3)]"
-                            aria-label={isEqrah ? `Case study: ${p.title}` : `Open ${p.title}`}
+                          <button
+                            type="button"
+                            onClick={() => open(p.id)}
+                            className="hover-target relative block aspect-[16/10] w-full overflow-hidden border-b hairline bg-[var(--void3)] text-left"
+                            aria-label={`Open ${p.title} case study`}
                           >
                             <img
                               src={p.image}
@@ -155,7 +155,7 @@ export default function Experience() {
                             <span className="absolute bottom-3 right-3 flex h-9 w-9 translate-y-2 items-center justify-center rounded-full bg-white text-black opacity-0 shadow-lg transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
                               <ArrowUpRight size={16} />
                             </span>
-                          </a>
+                          </button>
 
                           <div className="flex flex-1 flex-col p-5">
                             <div className="flex items-baseline justify-between gap-3">
@@ -176,38 +176,25 @@ export default function Experience() {
                             </div>
 
                             <div className="mt-5 flex items-center gap-3 border-t hairline pt-4">
-                              {isEqrah ? (
-                                // Eqrah → only Case study
+                              <button
+                                type="button"
+                                onClick={() => open(p.id)}
+                                className="hover-target inline-flex items-center gap-1 text-[13px] font-semibold text-accent hover:underline"
+                              >
+                                Case study <ArrowUpRight size={14} />
+                              </button>
+                              {hasLive && (
                                 <a
-                                  href={`/work/${p.title.toLowerCase()}`}
-                                  className="hover-target inline-flex items-center gap-1 text-[13px] font-semibold text-accent hover:underline"
+                                  href={p.link}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="hover-target inline-flex items-center gap-1 text-[13px] font-medium text-muted transition-colors hover:text-fg"
                                 >
-                                  Case study <ArrowUpRight size={14} />
+                                  Live site <ArrowUpRight size={14} />
                                 </a>
-                              ) : (
-                                // Normal projects → Live + Code
-                                <>
-                                  {hasLive && (
-                                    <a
-                                      href={p.link}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="hover-target inline-flex items-center gap-1 text-[13px] font-semibold text-accent hover:underline"
-                                    >
-                                      Live site <ArrowUpRight size={14} />
-                                    </a>
-                                  )}
-                                  {hasGithub && (
-                                    <a
-                                      href={p.github}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="hover-target inline-flex items-center gap-1.5 text-[13px] font-medium text-muted transition-colors hover:text-fg"
-                                    >
-                                      Code
-                                    </a>
-                                  )}
-                                </>
+                              )}
+                              {!hasLive && p.liveNote && (
+                                <span className="text-[12px] text-muted">Private · no live link</span>
                               )}
                               <span className="ml-auto font-mono text-[11px] text-muted">{p.year}</span>
                             </div>
