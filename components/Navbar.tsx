@@ -1,593 +1,600 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+
+import { useState, useEffect, useRef, useCallback } from "react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Home,
-  User,
-  Code2,
   Briefcase,
+  Code2,
   FolderGit2,
+  User,
+  BookOpen,
   Mail,
   ArrowRight,
   X,
   Menu,
 } from "lucide-react";
+import ThemeToggle from "./ThemeToggle";
 
-const sections = [
-  {
-    id: "home",
-    title: "Start",
-    short: "Home",
-    icon: Home,
-    target: "body",
-    color: "from-blue-500/25 to-violet-500/25",
-    accent: "bg-blue-400",
-  },
-  {
-    id: "about",
-    title: "About",
-    short: "About",
-    icon: User,
-    target: "#about",
-    color: "from-emerald-500/25 to-teal-500/25",
-    accent: "bg-emerald-400",
-  },
+type NavItem = {
+  id: string;
+  title: string;
+  short: string;
+  icon: React.ComponentType<{
+    size?: number;
+    strokeWidth?: number;
+    className?: string;
+  }>;
+  target?: string;
+  route?: string;
+};
+
+export const navItems: NavItem[] = [
+  { id: "home", title: "Home", short: "Home", icon: Home, target: "body" },
   {
     id: "experience",
-    title: "Timeline",
+    title: "Experience",
     short: "Work",
     icon: Briefcase,
     target: "#experience",
-    color: "from-indigo-500/25 to-cyan-500/25",
-    accent: "bg-indigo-400",
-  },
-  {
-    id: "work",
-    title: "Selected Works",
-    short: "Works",
-    icon: FolderGit2,
-    target: "#work",
-    color: "from-amber-500/25 to-yellow-500/25",
-    accent: "bg-amber-400",
   },
   {
     id: "skills",
-    title: "Capabilities",
-    short: "Skills",
+    title: "Stack",
+    short: "Stack",
     icon: Code2,
     target: "#skills",
-    color: "from-pink-500/25 to-rose-500/25",
-    accent: "bg-pink-400",
   },
   {
+    id: "work",
+    title: "Projects",
+    short: "Projects",
+    icon: FolderGit2,
+    target: "#work",
+  },
+  { id: "about", title: "About", short: "About", icon: User, target: "#about" },
+  { id: "blog", title: "Blog", short: "Blog", icon: BookOpen, route: "/blog" },
+  {
     id: "contact",
-    title: "LET'S TALK",
-    short: "Talk",
+    title: "Contact",
+    short: "Contact",
     icon: Mail,
-    target: "#contact",
-    color: "from-green-500/25 to-emerald-500/25",
-    accent: "bg-green-400",
+    route: "/contact",
   },
 ];
 
+const RESUME =
+  "https://drive.google.com/file/d/17lmURlHIjW8VCMQNHw-ddDGYOg_t6iGM/view";
+
+const lenisTo = (target: string | number, immediate = false) => {
+  const lenis = (window as any).lenis;
+  if (lenis) {
+    lenis.scrollTo(target, {
+      immediate,
+      duration: 1.15,
+      easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+    });
+  } else if (typeof target === "number") {
+    window.scrollTo({ top: target, behavior: immediate ? "auto" : "smooth" });
+  } else {
+    document
+      .querySelector(target)
+      ?.scrollIntoView({ behavior: immediate ? "auto" : "smooth" });
+  }
+};
+
 export default function Navbar() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [clickedSection, setClickedSection] = useState<
-    (typeof sections)[0] | null
-  >(null);
-  const [hoveredSection, setHoveredSection] = useState<string | null>(null);
+  const pathname = usePathname();
+  const router = useRouter();
+  const isHome = pathname === "/";
+
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [clicked, setClicked] = useState<NavItem | null>(null);
+  const [hoveredRow, setHoveredRow] = useState<string | null>(null);
+  const [hoveredDock, setHoveredDock] = useState<string | null>(null);
   const [scrolled, setScrolled] = useState(false);
-  const [fromDesktop, setFromDesktop] = useState(false);
-  const [activeSection, setActiveSection] = useState("home");
-  const [hideDock, setHideDock] = useState(false);
-  const [hoveredDockItem, setHoveredDockItem] = useState<string | null>(null);
-
-  // Scroll direction control
   const [showDock, setShowDock] = useState(false);
-  const lastScrollY = useRef(0);
+  const [activeSection, setActiveSection] = useState("home");
 
-  // Hide bottom dock while Projects section is in view
+  const lastY = useRef(0);
+  const busy = useRef(false);
+  const pendingNav = useRef(false); // true when we are waiting for a real route change
+
+  /* ── route-driven active state ── */
   useEffect(() => {
-    const work = document.getElementById("work");
-    if (!work) return;
+    if (pathname.startsWith("/blog")) setActiveSection("blog");
+    else if (pathname.startsWith("/contact")) setActiveSection("contact");
+    else if (pathname === "/") {
+      // keep current section on home, only reset if coming from another page
+    } else {
+      setActiveSection("home");
+    }
+  }, [pathname]);
 
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        setHideDock(entry.isIntersecting && entry.intersectionRatio > 0.15);
-      },
-      {
-        threshold: [0, 0.15, 0.3, 0.5],
-        rootMargin: "-10% 0px -10% 0px",
-      },
-    );
+/* ── after navigation: wait for target, then keep aligned ── */
+useEffect(() => {
+  if (pathname !== "/") return;
 
-    observer.observe(work);
-    return () => observer.disconnect();
-  }, []);
+  const hash = sessionStorage.getItem("nav-target") || window.location.hash || null;
+  let stop = false;
+  let foundAt = 0;
+  const start = performance.now();
 
-  // Scroll detection with direction
+  const onUser = () => { stop = true; };
+  const evs = ["wheel", "touchstart", "keydown"] as const;
+  evs.forEach((e) => window.addEventListener(e, onUser, { passive: true }));
+
+  const tick = () => {
+    if (stop) return;
+    const now = performance.now();
+    const lenis = (window as any).lenis;
+
+    // plain Home → just go to top
+    if (!hash || hash === "#") {
+      lenis?.resize?.();
+      lenisTo(0, true);
+      return;
+    }
+
+    const el = document.querySelector(hash);
+
+    // Home not mounted yet → keep waiting (max 5s)
+    if (!el) {
+      if (now - start < 5000) requestAnimationFrame(tick);
+      else lenisTo(0, true);
+      return;
+    }
+
+    if (!foundAt) foundAt = now;
+
+    // re-align if layout shifted
+    if (Math.abs(el.getBoundingClientRect().top) > 2) {
+      lenis?.resize?.();
+      lenisTo(hash, true);
+    }
+
+    if (now - foundAt < 1200) requestAnimationFrame(tick);
+    else sessionStorage.removeItem("nav-target");
+  };
+
+  requestAnimationFrame(tick);
+
+  return () => {
+    stop = true;
+    evs.forEach((e) => window.removeEventListener(e, onUser));
+  };
+}, [pathname]);
+
+  /* ── scroll direction ── */
   useEffect(() => {
-    const handleScroll = () => {
-      const currentScrollY = window.scrollY;
-
-      setScrolled(currentScrollY > 80);
-
-      if (currentScrollY < 100) {
-        setShowDock(false);
-      } else if (currentScrollY < lastScrollY.current) {
-        setShowDock(true);
-      } else if (currentScrollY > lastScrollY.current + 8) {
-        setShowDock(false);
-      }
-
-      lastScrollY.current = currentScrollY;
+    const onScroll = () => {
+      const y = window.scrollY;
+      setScrolled(y > 70);
+      if (y < 90) setShowDock(false);
+      else if (y < lastY.current) setShowDock(true);
+      else if (y > lastY.current + 6) setShowDock(false);
+      lastY.current = y;
     };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [pathname]);
 
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  // Active section observer
+  /* ── active section on home ── */
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) setActiveSection(entry.target.id || "home");
-        });
-      },
+    if (!isHome) return;
+    const ids = ["experience", "skills", "work", "about"];
+    const io = new IntersectionObserver(
+      (entries) =>
+        entries.forEach(
+          (e) => e.isIntersecting && setActiveSection(e.target.id),
+        ),
       { rootMargin: "-35% 0px -55% 0px", threshold: 0 },
     );
-
-    ["about", "skills", "experience", "work", "contact"].forEach((id) => {
+    ids.forEach((id) => {
       const el = document.getElementById(id);
-      if (el) observer.observe(el);
+      if (el) io.observe(el);
     });
-
-    const checkHome = () => {
-      if (window.scrollY < 180) setActiveSection("home");
-    };
-    window.addEventListener("scroll", checkHome, { passive: true });
-
+    const top = () => window.scrollY < 160 && setActiveSection("home");
+    window.addEventListener("scroll", top, { passive: true });
     return () => {
-      observer.disconnect();
-      window.removeEventListener("scroll", checkHome);
+      io.disconnect();
+      window.removeEventListener("scroll", top);
     };
-  }, []);
+  }, [isHome]);
 
-  // Body scroll lock
+  /* ── body scroll lock + ESC ── */
   useEffect(() => {
-    document.body.style.overflow = isMenuOpen ? "hidden" : "";
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [isMenuOpen]);
-
-  // ESC to close
-  useEffect(() => {
+    document.body.style.overflow = menuOpen ? "hidden" : "";
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isMenuOpen && !clickedSection) {
-        setIsMenuOpen(false);
-        setFromDesktop(false);
-      }
+      if (e.key === "Escape" && menuOpen && !clicked) setMenuOpen(false);
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [isMenuOpen, clickedSection]);
+    return () => {
+      document.body.style.overflow = "";
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen, clicked]);
 
-  const scrollTo = (target: string) => {
-    setIsMenuOpen(false);
-    setFromDesktop(false);
-    setTimeout(() => {
-      const lenis = (window as any).lenis;
-      if (lenis) {
-        lenis.scrollTo(target, {
-          duration: 1.9,
-          easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-        });
+  /* ── finish transition ONLY when pathname actually changes ── */
+  useEffect(() => {
+    if (!pendingNav.current || !clicked) return;
+
+    // Route has changed → finish the cover quickly
+    const t = window.setTimeout(() => {
+      setMenuOpen(false);
+      window.setTimeout(() => {
+        setClicked(null);
+        busy.current = false;
+        pendingNav.current = false;
+      }, 280);
+    }, 40);
+
+    return () => window.clearTimeout(t);
+  }, [pathname, clicked]);
+
+  /**
+   * Ultra-snappy navigation
+   */
+const go = useCallback(
+  (item: NavItem) => {
+    if (busy.current) return;
+
+    // Already on that route
+    if (item.route && pathname === item.route) {
+      setMenuOpen(false);
+      lenisTo(0);
+      return;
+    }
+
+    busy.current = true;
+    setClicked(item);
+    setMenuOpen(true);
+
+    window.setTimeout(() => {
+      if (item.route) {
+        // Going to /blog or /contact
+        pendingNav.current = true;
+        router.push(item.route);
+      } else if (isHome) {
+        // Same page section
+        lenisTo(item.target!, true);
+        setMenuOpen(false);
+        window.setTimeout(() => {
+          setClicked(null);
+          busy.current = false;
+        }, 320);
       } else {
-        document.querySelector(target)?.scrollIntoView({ behavior: "smooth" });
+        // Coming from Blog/Contact → Home section
+        pendingNav.current = true;
+
+        if (item.target && item.target !== "body") {
+          sessionStorage.setItem("nav-target", item.target); // "#work", "#about" etc.
+        } else {
+          sessionStorage.removeItem("nav-target");
+        }
+
+        router.push("/"); // always clean navigation
       }
-    }, 280);
-  };
+    }, 380);
+  },
+  [isHome, pathname, router],
+);
 
-  const handleCardClick = (section: (typeof sections)[0]) => {
-    setClickedSection(section);
-    setTimeout(() => {
-      const lenis = (window as any).lenis;
-      if (lenis) lenis.scrollTo(section.target, { immediate: true });
-      else
-        document
-          .querySelector(section.target)
-          ?.scrollIntoView({ behavior: "auto" });
-      setIsMenuOpen(false);
-      setFromDesktop(false);
-      setTimeout(() => setClickedSection(null), 550);
-    }, 720);
-  };
-
-  const handleDesktopClick = (section: (typeof sections)[0]) => {
-    setFromDesktop(true);
-    setClickedSection(section);
-    setIsMenuOpen(true);
-
-    setTimeout(() => {
-      const lenis = (window as any).lenis;
-      if (lenis) lenis.scrollTo(section.target, { immediate: true });
-      else
-        document
-          .querySelector(section.target)
-          ?.scrollIntoView({ behavior: "auto" });
-      setIsMenuOpen(false);
-      setFromDesktop(false);
-      setTimeout(() => setClickedSection(null), 550);
-    }, 720);
+  const logoClick = (e: React.MouseEvent) => {
+    if (isHome) {
+      e.preventDefault();
+      lenisTo(0);
+    }
   };
 
   return (
     <>
-      {/* ===================== TOP NAVBAR ===================== */}
+      {/* ===================== TOP BAR ===================== */}
       <motion.nav
         initial={false}
-        animate={{
-          y: scrolled ? -100 : 0,
-          opacity: scrolled ? 0 : 1,
-        }}
-        transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-        className="fixed top-0 left-0 w-full z-50 pointer-events-none mix-blend-difference"
+        animate={{ y: scrolled ? -100 : 0, opacity: scrolled ? 0 : 1 }}
+        transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+        className="fixed left-0 top-0 z-50 w-full"
       >
-        <div className="flex items-center justify-between px-5 sm:px-8 lg:px-10 py-5 lg:py-5">
-          <button
-            onClick={() => scrollTo("body")}
-            className="pointer-events-auto font-display font-semibold tracking-tight text-white text-[17px] sm:text-lg hover-target"
+        <div className="mx-auto flex h-[64px] max-w-7xl items-center justify-between px-5 sm:px-8">
+          <Link
+            href="/"
+            onClick={logoClick}
+            aria-label="Aanan Munna, home"
+            className="hover-target group flex items-center"
           >
-            AananMunna
-          </button>
+            <img
+              src="/favicon.svg"
+              alt=""
+              width={36}
+              height={36}
+              className="h-[36px] w-[36px] rounded-[9px] shadow-[0_4px_14px_-4px_rgba(0,0,0,0.35)] transition-transform duration-250 group-hover:-rotate-3 group-hover:scale-105"
+            />
+          </Link>
 
-          <div className="hidden lg:flex items-center gap-0.5 pointer-events-auto">
-            {sections.map((s) => (
-              <button
-                key={s.id}
-                onClick={() => handleDesktopClick(s)}
-                className="group relative px-4 py-2.5 font-mono text-[11px] uppercase tracking-[0.2em] text-white/65 hover:text-white transition-colors duration-300 hover-target"
-              >
-                {s.title}
-                <span className="absolute bottom-1.5 left-4 right-4 h-px origin-left scale-x-0 bg-white/80 transition-transform duration-300 group-hover:scale-x-100" />
-              </button>
-            ))}
+          <div className="hidden items-center lg:flex">
+            {navItems
+              .filter((n) => n.id !== "home")
+              .map((n) => {
+                const active = activeSection === n.id;
+                return (
+                  <button
+                    key={n.id}
+                    onClick={() => go(n)}
+                    className={`hover-target group relative px-3.5 py-2 text-[13.5px] font-medium tracking-tight transition-colors duration-200 ${
+                      active ? "text-fg" : "text-muted hover:text-fg"
+                    }`}
+                  >
+                    {n.title}
+                    <span
+                      className={`absolute inset-x-3.5 -bottom-0.5 h-[2px] origin-left rounded-full bg-accent transition-transform duration-250 ${
+                        active
+                          ? "scale-x-100"
+                          : "scale-x-0 group-hover:scale-x-100"
+                      }`}
+                    />
+                  </button>
+                );
+              })}
 
             <a
-              href="https://drive.google.com/file/d/17lmURlHIjW8VCMQNHw-ddDGYOg_t6iGM/view"
+              href={RESUME}
               target="_blank"
               rel="noopener noreferrer"
-              className="ml-5 px-4 py-2 border border-accent/70 text-accent text-[11px] font-mono uppercase tracking-[0.16em] rounded-sm hover:bg-accent hover:text-black transition-all duration-300 hover-target"
+              className="hover-target btn-ghost ml-4 !px-4 !py-2 !text-[13px]"
             >
               Resume
             </a>
+            <ThemeToggle className="ml-3" />
           </div>
 
-          <button
-            onClick={() => {
-              setFromDesktop(false);
-              setIsMenuOpen(true);
-            }}
-            className="lg:hidden pointer-events-auto w-11 h-11 rounded-full border border-white/20 flex flex-col items-center justify-center gap-1.5 bg-white/5 backdrop-blur-md hover:bg-white/10 transition-colors hover-target"
-          >
-            <span className="w-5 h-[1.5px] bg-white rounded-full" />
-            <span className="w-3.5 h-[1.5px] bg-white rounded-full" />
-          </button>
+          <div className="flex items-center gap-2 lg:hidden">
+            <ThemeToggle />
+            <button
+              onClick={() => setMenuOpen(true)}
+              aria-label="Open menu"
+              className="hover-target flex h-10 w-10 flex-col items-center justify-center gap-1.5 rounded-full border border-white/15 bg-white/5 transition-colors hover:bg-white/10"
+            >
+              <span className="h-[1.5px] w-5 rounded-full bg-white" />
+              <span className="h-[1.5px] w-3.5 rounded-full bg-white" />
+            </button>
+          </div>
         </div>
       </motion.nav>
 
-      {/* ===================== CLEAN PREMIUM FLOATING DOCK ===================== */}
+      {/* ===================== FLOATING DOCK ===================== */}
       <AnimatePresence>
-        {showDock && !hideDock && (
+        {showDock && (
           <motion.div
-            initial={{ y: 100, opacity: 0 }}
+            initial={{ y: 80, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 100, opacity: 0 }}
-            transition={{
-              type: "spring",
-              stiffness: 400,
-              damping: 35,
-            }}
-            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none"
+            exit={{ y: 80, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 480, damping: 38 }}
+            className="pointer-events-none fixed bottom-3 left-1/2 z-50 max-w-[calc(100vw-1rem)] -translate-x-1/2"
           >
-            <div className="pointer-events-auto relative">
-              {/* Soft ambient glow */}
-              <div className="absolute -inset-3 rounded-full bg-white/[0.04] blur-xl" />
-
-              {/* Main dock */}
-              <div className="relative flex items-center gap-1 px-2 py-2 rounded-2xl bg-[#0a0a0a]/80 backdrop-blur-xl border border-white/[0.08] shadow-2xl shadow-black/50">
-                {sections.map((section) => {
-                  const Icon = section.icon;
-                  const isActive = activeSection === section.id;
-                  const isHovered = hoveredDockItem === section.id;
-
-                  return (
-                    <button
-                      key={section.id}
-                      onClick={() => handleDesktopClick(section)}
-                      onMouseEnter={() => setHoveredDockItem(section.id)}
-                      onMouseLeave={() => setHoveredDockItem(null)}
-                      className="relative flex items-center justify-center w-11 h-11 sm:w-12 sm:h-12 rounded-xl transition-all duration-200 hover-target"
+            <div
+              className="pointer-events-auto relative flex items-center gap-0.5 rounded-2xl border px-1.5 py-1.5 shadow-2xl backdrop-blur-xl"
+              style={{
+                background: "var(--dock-bg)",
+                borderColor: "var(--line)",
+              }}
+            >
+              {navItems.map((n) => {
+                const Icon = n.icon;
+                const active = activeSection === n.id;
+                const hovered = hoveredDock === n.id;
+                return (
+                  <button
+                    key={n.id}
+                    onClick={() => go(n)}
+                    onMouseEnter={() => setHoveredDock(n.id)}
+                    onMouseLeave={() => setHoveredDock(null)}
+                    aria-label={n.short}
+                    className="hover-target relative flex h-10 w-10 items-center justify-center rounded-xl sm:h-11 sm:w-11"
+                  >
+                    <motion.span
+                      className="absolute inset-0 rounded-xl bg-white"
+                      initial={false}
+                      animate={{
+                        opacity: active ? 0.1 : hovered ? 0.06 : 0,
+                        scale: active || hovered ? 1 : 0.88,
+                      }}
+                      transition={{ duration: 0.15 }}
+                    />
+                    <motion.span
+                      animate={{
+                        y: active ? -1 : 0,
+                        scale: active ? 1.12 : hovered ? 1.07 : 1,
+                      }}
+                      transition={{
+                        type: "spring",
+                        stiffness: 520,
+                        damping: 28,
+                      }}
+                      className="relative z-10"
                     >
-                      {/* Active / Hover background */}
-                      <motion.div
-                        className="absolute inset-0 rounded-xl"
-                        initial={false}
-                        animate={{
-                          backgroundColor: isActive
-                            ? "rgba(255,255,255,0.12)"
-                            : isHovered
-                              ? "rgba(255,255,255,0.07)"
-                              : "rgba(255,255,255,0)",
-                          scale: isActive || isHovered ? 1 : 0.9,
-                        }}
-                        transition={{ duration: 0.2 }}
+                      <Icon
+                        size={18}
+                        strokeWidth={active ? 2.3 : 1.8}
+                        className={`transition-colors duration-150 ${
+                          active
+                            ? "text-accent"
+                            : hovered
+                              ? "text-fg"
+                              : "text-muted"
+                        }`}
                       />
-
-                      {/* Icon */}
-                      <motion.div
-                        animate={{
-                          y: isActive ? -1 : 0,
-                          scale: isActive ? 1.1 : isHovered ? 1.08 : 1,
-                        }}
+                    </motion.span>
+                    {active && (
+                      <motion.span
+                        layoutId="dock-dot"
+                        className="absolute -bottom-0.5 h-1 w-1 rounded-full bg-accent"
                         transition={{
                           type: "spring",
-                          stiffness: 400,
-                          damping: 25,
+                          stiffness: 600,
+                          damping: 32,
                         }}
-                        className="relative z-10"
-                      >
-                        <Icon
-                          size={20}
-                          strokeWidth={isActive ? 2.2 : 1.8}
-                          className={`transition-colors duration-200 ${
-                            isActive
-                              ? "text-white"
-                              : isHovered
-                                ? "text-white/90"
-                                : "text-white/50"
-                          }`}
-                        />
-                      </motion.div>
-
-                      {/* Active indicator dot */}
-                      {isActive && (
-                        <motion.div
-                          layoutId="active-dot"
-                          className="absolute -bottom-0.5 w-1 h-1 rounded-full bg-white"
-                          transition={{
-                            type: "spring",
-                            stiffness: 500,
-                            damping: 30,
-                          }}
-                        />
+                      />
+                    )}
+                    <AnimatePresence>
+                      {hovered && (
+                        <motion.span
+                          initial={{ opacity: 0, y: 6, scale: 0.92 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 4, scale: 0.95 }}
+                          transition={{ duration: 0.12 }}
+                          className="pointer-events-none absolute -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-fg px-2.5 py-1 text-[11px] font-medium text-bg shadow-lg"
+                        >
+                          {n.short}
+                        </motion.span>
                       )}
-
-                      {/* Tooltip label */}
-                      <AnimatePresence>
-                        {isHovered && (
-                          <motion.div
-                            initial={{ opacity: 0, y: 8, scale: 0.9 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                            exit={{ opacity: 0, y: 6, scale: 0.95 }}
-                            transition={{ duration: 0.15 }}
-                            className="absolute -top-10 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-md bg-white text-black text-[11px] font-medium whitespace-nowrap pointer-events-none shadow-lg"
-                          >
-                            {section.short}
-                            <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-white rotate-45" />
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </button>
-                  );
-                })}
-
-                {/* Divider */}
-                <div className="w-px h-6 bg-white/10 mx-1" />
-
-                {/* Menu button */}
-                <button
-                  onClick={() => {
-                    setFromDesktop(false);
-                    setIsMenuOpen(true);
-                  }}
-                  onMouseEnter={() => setHoveredDockItem("menu")}
-                  onMouseLeave={() => setHoveredDockItem(null)}
-                  className="relative flex items-center justify-center w-11 h-11 sm:w-12 sm:h-12 rounded-xl hover-target"
-                >
-                  <motion.div
-                    className="absolute inset-0 rounded-xl"
-                    animate={{
-                      backgroundColor:
-                        hoveredDockItem === "menu"
-                          ? "rgba(255,255,255,0.07)"
-                          : "rgba(255,255,255,0)",
-                    }}
-                    transition={{ duration: 0.2 }}
-                  />
-                  <Menu
-                    size={18}
-                    className={`relative z-10 transition-colors duration-200 ${
-                      hoveredDockItem === "menu"
-                        ? "text-white/90"
-                        : "text-white/50"
-                    }`}
-                  />
-                </button>
-              </div>
+                    </AnimatePresence>
+                  </button>
+                );
+              })}
+              <span className="mx-1 h-5 w-px bg-white/10" />
+              <button
+                onClick={() => setMenuOpen(true)}
+                aria-label="Open menu"
+                className="hover-target flex h-10 w-10 items-center justify-center rounded-xl text-muted transition-colors hover:text-fg sm:h-11 sm:w-11"
+              >
+                <Menu size={17} />
+              </button>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* ===================== FULL SCREEN MENU ===================== */}
+      {/* ===================== FULL-SCREEN MENU + TRANSITION COVER ===================== */}
       <AnimatePresence>
-        {isMenuOpen && (
+        {menuOpen && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-            className="fixed inset-0 z-[100] bg-bg/95 backdrop-blur-2xl flex flex-col justify-center overflow-hidden"
+            transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+            className="fixed inset-0 z-[100] flex flex-col justify-center overflow-hidden bg-bg/95 backdrop-blur-2xl"
           >
-            <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff04_1px,transparent_1px),linear-gradient(to_bottom,#ffffff04_1px,transparent_1px)] bg-[size:3.5rem_3.5rem] pointer-events-none" />
+            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,var(--line)_1px,transparent_1px),linear-gradient(to_bottom,var(--line)_1px,transparent_1px)] bg-[size:3.5rem_3.5rem] opacity-40" />
 
-            <div className="absolute inset-0 pointer-events-none transition-opacity duration-700">
-              {sections.map((s) => (
-                <div
-                  key={s.id}
-                  className={`absolute inset-0 bg-gradient-to-br ${s.color} transition-opacity duration-700 ${
-                    hoveredSection === s.id ? "opacity-100" : "opacity-0"
-                  }`}
-                />
-              ))}
-            </div>
-
-            {!fromDesktop && (
-              <motion.div
-                animate={{ opacity: clickedSection ? 0 : 1 }}
-                className="absolute top-0 inset-x-0 px-5 sm:px-10 py-6 flex justify-between items-center z-30 pointer-events-none"
-              >
-                <span className="font-display font-bold text-sm tracking-[0.25em] uppercase text-white/40">
-                  Navigation
-                </span>
-                <button
-                  onClick={() => {
-                    setIsMenuOpen(false);
-                    setFromDesktop(false);
-                  }}
-                  className="pointer-events-auto w-12 h-12 rounded-full border border-white/15 flex items-center justify-center bg-white/5 hover:bg-white/15 hover:rotate-90 transition-all duration-400 hover-target text-white"
-                >
-                  <X size={18} />
-                </button>
-              </motion.div>
-            )}
-
-            {!fromDesktop && (
-              <div
-                className="relative z-20 w-full h-full overflow-y-auto pt-24 sm:pt-28 pb-28 px-5 sm:px-12 md:px-20 hide-scrollbar pointer-events-auto"
-                data-lenis-prevent="true"
-              >
-                <div className="max-w-5xl mx-auto flex flex-col">
-                  {sections.map((section, i) => {
-                    const Icon = section.icon;
-                    if (clickedSection?.id === section.id) {
-                      return (
-                        <div
-                          key={section.id}
-                          className="py-7 sm:py-9 opacity-0"
-                        />
-                      );
-                    }
-
-                    return (
-                      <motion.button
-                        layoutId={`card-${section.id}`}
-                        key={section.id}
-                        initial={{ opacity: 0, y: 50 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: 20 }}
-                        transition={{
-                          duration: 0.5,
-                          delay: i * 0.04,
-                          ease: [0.16, 1, 0.3, 1],
-                        }}
-                        onMouseEnter={() => setHoveredSection(section.id)}
-                        onMouseLeave={() => setHoveredSection(null)}
-                        onClick={() => handleCardClick(section)}
-                        className="group relative flex items-center justify-between py-5 sm:py-7 md:py-8 border-b border-white/[0.07] text-left hover-target"
-                      >
-                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.03] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-
-                        <div className="flex items-center gap-5 sm:gap-10 md:gap-14">
-                          <span className="font-mono text-xs sm:text-sm text-white/25 group-hover:text-white/60 transition-colors duration-300 tabular-nums">
-                            0{i + 1}
-                          </span>
-                          <h3 className="font-display text-[2rem] sm:text-5xl md:text-6xl lg:text-7xl uppercase font-bold tracking-tighter text-white/35 group-hover:text-white transition-all duration-500 group-hover:translate-x-3 sm:group-hover:translate-x-6">
-                            {section.title}
-                          </h3>
-                        </div>
-
-                        <div className="flex items-center gap-5 opacity-0 group-hover:opacity-100 -translate-x-6 group-hover:translate-x-0 transition-all duration-500">
-                          <Icon
-                            size={28}
-                            className="text-white/40 hidden sm:block"
-                          />
-                          <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full border border-white/15 flex items-center justify-center bg-white/5 text-white">
-                            <ArrowRight
-                              size={18}
-                              className="-rotate-45 group-hover:rotate-0 transition-transform duration-500"
-                            />
-                          </div>
-                        </div>
-                      </motion.button>
-                    );
-                  })}
+            {!clicked && (
+              <>
+                <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-center justify-between px-5 py-5 sm:px-10">
+                  <span className="eyebrow">Navigation</span>
+                  <button
+                    onClick={() => setMenuOpen(false)}
+                    aria-label="Close menu"
+                    className="hover-target pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white transition-all duration-250 hover:rotate-90 hover:bg-white/15"
+                  >
+                    <X size={17} />
+                  </button>
                 </div>
-              </div>
-            )}
 
-            {!fromDesktop && (
-              <motion.p
-                animate={{ opacity: clickedSection ? 0 : 1 }}
-                className="absolute bottom-7 inset-x-0 text-center font-mono text-[10px] uppercase tracking-[0.25em] text-white/25 pointer-events-none z-10"
-              >
-                Hover • Click • ESC to close
-              </motion.p>
-            )}
-
-            {clickedSection && (
-              <motion.div
-                layoutId={fromDesktop ? undefined : `card-${clickedSection.id}`}
-                initial={fromDesktop ? { opacity: 0, scale: 0.94 } : false}
-                animate={{ opacity: 1, scale: 1 }}
-                className="fixed inset-0 z-[200] bg-bg flex flex-col items-center justify-center overflow-hidden"
-                transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
-              >
                 <div
-                  className={`absolute inset-0 bg-gradient-to-br ${clickedSection.color} opacity-30`}
-                />
+                  className="relative z-20 h-full w-full overflow-y-auto px-5 pb-20 pt-20 sm:px-12 sm:pt-24 md:px-20"
+                  data-lenis-prevent="true"
+                >
+                  <div className="mx-auto flex max-w-4xl flex-col">
+                    {navItems.map((n, i) => {
+                      const Icon = n.icon;
+                      const active = activeSection === n.id;
+                      return (
+                        <motion.button
+                          key={n.id}
+                          initial={{ opacity: 0, y: 28 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{
+                            duration: 0.38,
+                            delay: i * 0.03,
+                            ease: [0.16, 1, 0.3, 1],
+                          }}
+                          onMouseEnter={() => setHoveredRow(n.id)}
+                          onMouseLeave={() => setHoveredRow(null)}
+                          onClick={() => go(n)}
+                          className="hover-target group relative flex items-center justify-between border-b hairline py-3.5 text-left sm:py-4"
+                        >
+                          <div className="flex items-baseline gap-5 sm:gap-10">
+                            <span className="font-mono text-xs tabular-nums text-muted">
+                              0{i + 1}
+                            </span>
+                            <span
+                              className={`text-[1.85rem] font-semibold tracking-tight transition-all duration-300 group-hover:translate-x-2.5 sm:text-5xl md:text-6xl ${
+                                active || hoveredRow === n.id
+                                  ? "text-fg"
+                                  : "text-fg/40"
+                              }`}
+                            >
+                              {n.title}
+                            </span>
+                          </div>
+                          <div className="flex -translate-x-4 items-center gap-4 opacity-0 transition-all duration-300 group-hover:translate-x-0 group-hover:opacity-100">
+                            <Icon
+                              size={24}
+                              strokeWidth={1.5}
+                              className="hidden text-muted sm:block"
+                            />
+                            <span className="flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white">
+                              <ArrowRight size={16} />
+                            </span>
+                          </div>
+                        </motion.button>
+                      );
+                    })}
+                    <a
+                      href={RESUME}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover-target mt-7 inline-flex w-fit items-center gap-2 text-sm font-medium text-accent"
+                    >
+                      Download resume <ArrowRight size={14} />
+                    </a>
+                  </div>
+                </div>
+              </>
+            )}
 
-                <div className="absolute inset-0 bg-[linear-gradient(transparent_50%,rgba(0,0,0,0.18)_50%)] bg-[length:100%_3px] pointer-events-none mix-blend-overlay opacity-40" />
-
+            {/* Transition Cover – ultra fast */}
+            {clicked && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.97 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 1.01 }}
+                transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+                className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-bg"
+              >
+                <div className="hero-ambient absolute inset-0" />
                 <motion.div
-                  initial={{ opacity: 0, y: 30, scale: 0.9 }}
+                  initial={{ opacity: 0, y: 16, scale: 0.96 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   transition={{
-                    delay: 0.22,
-                    duration: 0.45,
+                    delay: 0.06,
+                    duration: 0.28,
                     ease: [0.16, 1, 0.3, 1],
                   }}
                   className="relative z-10 flex flex-col items-center"
                 >
-                  <div className="mb-8 sm:mb-10 p-5 rounded-full border border-white/10 bg-white/5 backdrop-blur-md">
-                    {(() => {
-                      const Icon = clickedSection.icon;
-                      return (
-                        <Icon
-                          size={42}
-                          strokeWidth={1.5}
-                          className="text-white/70"
-                        />
-                      );
-                    })()}
-                  </div>
-
-                  <h2 className="font-display text-4xl sm:text-6xl md:text-7xl uppercase font-bold tracking-tighter text-white text-center px-6">
-                    {clickedSection.title}
+                  <span className="mb-5 flex h-16 w-16 items-center justify-center rounded-full border hairline bg-white/5">
+                    <clicked.icon
+                      size={28}
+                      strokeWidth={1.5}
+                      className="text-accent"
+                    />
+                  </span>
+                  <h2 className="px-6 text-center text-4xl font-semibold tracking-tight text-fg sm:text-6xl">
+                    {clicked.title}
                   </h2>
-
-                  <motion.div
+                  <motion.span
                     initial={{ scaleX: 0 }}
                     animate={{ scaleX: 1 }}
                     transition={{
-                      delay: 0.38,
-                      duration: 0.5,
+                      delay: 0.14,
+                      duration: 0.32,
                       ease: [0.22, 1, 0.36, 1],
                     }}
-                    className="h-[2px] w-16 sm:w-24 bg-white/80 mt-8 origin-center"
+                    className="mt-5 h-[2px] w-14 origin-center rounded-full bg-accent sm:w-20"
                   />
                 </motion.div>
               </motion.div>

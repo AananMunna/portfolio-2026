@@ -47,6 +47,16 @@ const STACK: Record<
   tailwind: { label: 'Tailwind CSS', group: 'Frontend' },
   express: { label: 'Express.js', group: 'Backend' },
   mongodb: { label: 'MongoDB', group: 'Database' },
+  'next.js': { label: 'Next.js', group: 'Frontend' },
+  typescript: { label: 'TypeScript', group: 'Frontend' },
+  redux: { label: 'Redux', group: 'Frontend' },
+  'ant design': { label: 'Ant Design', group: 'Frontend' },
+  'framer motion': { label: 'Framer Motion', group: 'Frontend' },
+  'node.js': { label: 'Node.js', group: 'Backend' },
+  prisma: { label: 'Prisma', group: 'Backend' },
+  stripe: { label: 'Stripe', group: 'Backend' },
+  postgresql: { label: 'PostgreSQL', group: 'Database' },
+  redis: { label: 'Redis', group: 'Database' },
 };
 const GROUP_ORDER = ['Frontend', 'Backend', 'Database', 'Other'] as const;
 
@@ -333,6 +343,7 @@ export default function ProjectDetail({
   const meta = (
     [
       ['Client', extra.client],
+      ['Work', project.workType === 'company' ? 'Company work' : 'Personal project'],
       ['Category', project.category],
       ['Timeline', extra.timeline ?? project.year],
       ['Role', project.role],
@@ -503,15 +514,17 @@ export default function ProjectDetail({
                     ))}
                   </ul>
 
-                  <div className="flex flex-wrap gap-2.5">
-                    <a
-                      href={project.link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="hover-target inline-flex items-center gap-2 rounded-full bg-fg px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.12em] text-bg transition hover:bg-accent"
-                    >
-                      Live site <ArrowUpRight size={14} />
-                    </a>
+                  <div className="flex flex-wrap gap-2.5 md:justify-end">
+                    {project.link && (
+                      <a
+                        href={project.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover-target inline-flex items-center gap-2 rounded-full bg-fg px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.12em] text-bg transition hover:bg-accent"
+                      >
+                        Live site <ArrowUpRight size={14} />
+                      </a>
+                    )}
                     {project.github && (
                       <a
                         href={project.github}
@@ -519,10 +532,26 @@ export default function ProjectDetail({
                         rel="noopener noreferrer"
                         className="hover-target inline-flex items-center gap-2 rounded-full border border-fg/15 px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.12em] text-fg transition hover:border-fg"
                       >
-                        <Github size={14} /> Code
+                        <Github size={14} />{' '}
+                        {project.githubBackend ? 'Frontend' : 'Code'}
+                      </a>
+                    )}
+                    {project.githubBackend && (
+                      <a
+                        href={project.githubBackend}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover-target inline-flex items-center gap-2 rounded-full border border-fg/15 px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.12em] text-fg transition hover:border-fg"
+                      >
+                        <Github size={14} /> Backend
                       </a>
                     )}
                   </div>
+                  {!project.link && project.liveNote && (
+                    <p className="max-w-xs text-xs leading-5 text-muted md:text-right">
+                      {project.liveNote}
+                    </p>
+                  )}
                 </motion.div>
               </div>
             </div>

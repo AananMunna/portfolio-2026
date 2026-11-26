@@ -1,11 +1,172 @@
 "use client";
 
-import { motion, useMotionValue, useSpring, useTransform } from "motion/react";
-import { useEffect, useState } from "react";
-import { Github, Linkedin, Instagram, Facebook, Twitter } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { Github, Linkedin, Instagram, Facebook, Twitter, ArrowUpRight, MapPin } from "lucide-react";
 
 const PHOTO_SRC =
   "https://res.cloudinary.com/dtiotqi9q/image/upload/v1790229722/ChatGPT_Image_Sep_24_2026_12_01_47_PM_hl5xrw.png";
+
+/* ------------------------------------------------------------------ */
+/* Tiny syntax highlighter – only highlights the currently typed text */
+/* ------------------------------------------------------------------ */
+
+type Lang = "tsx" | "ts" | "sql";
+type Kind = "kw" | "fn" | "type" | "str" | "num" | "prop" | "tag" | "punc" | "cmt" | "plain";
+type Tok = { text: string; kind: Kind };
+
+const COLOR: Record<Kind, string> = {
+  kw: "text-[#5eead4]",
+  fn: "text-[#67e8f9]",
+  type: "text-[#6ee7b7]",
+  str: "text-[#d9f99d]",
+  num: "text-[#fcd34d]",
+  prop: "text-[#bae6fd]",
+  tag: "text-[#2dd4bf]",
+  punc: "text-[#5b8782]",
+  cmt: "text-[#4b6f6b] italic",
+  plain: "text-[#d5f5f1]",
+};
+
+const JS_KW = new Set(["export", "function", "async", "await", "const", "let", "return", "new", "import", "from", "if", "else", "type"]);
+const SQL_KW = new Set(["create", "table", "primary", "key", "not", "null", "references", "default", "index", "on"]);
+const TYPES = new Set(["string", "number", "boolean", "Request", "Response", "int", "serial", "timestamptz"]);
+const CONSTS = new Set(["true", "false", "null", "undefined"]);
+
+function tokenizeLine(line: string, lang: Lang): Tok[] {
+  const out: Tok[] = [];
+  let i = 0;
+  let prev = "";
+
+  const push = (text: string, kind: Kind) => {
+    out.push({ text, kind });
+    if (text.trim()) prev = text;
+  };
+
+  while (i < line.length) {
+    const rest = line.slice(i);
+    let m: RegExpMatchArray | null;
+
+    if ((m = rest.match(/^\s+/))) {
+      out.push({ text: m[0], kind: "plain" });
+      i += m[0].length;
+      continue;
+    }
+    if ((m = rest.match(/^\/\/.*/)) || (lang === "sql" && (m = rest.match(/^--.*/)))) {
+      push(m[0], "cmt");
+      i += m[0].length;
+      continue;
+    }
+    if ((m = rest.match(/^"(?:[^"\\]|\\.)*"/)) || (m = rest.match(/^'(?:[^'\\]|\\.)*'/))) {
+      push(m[0], "str");
+      i += m[0].length;
+      continue;
+    }
+    if ((m = rest.match(/^\d+(?:\.\d+)?/))) {
+      push(m[0], "num");
+      i += m[0].length;
+      continue;
+    }
+    if ((m = rest.match(/^[A-Za-z_$][\w$]*/))) {
+      const word = m[0];
+      const next = rest.slice(word.length).match(/^\s*(.)/)?.[1];
+      const kws = lang === "sql" ? SQL_KW : JS_KW;
+      const w = lang === "sql" ? word.toLowerCase() : word;
+
+      let kind: Kind = "plain";
+      if (kws.has(w)) kind = "kw";
+      else if (CONSTS.has(word)) kind = "num";
+      else if (TYPES.has(word)) kind = "type";
+      else if (lang === "tsx" && (prev === "<" || prev === "/")) kind = "tag";
+      else if (next === "(") kind = "fn";
+      else if (next === ":") kind = "prop";
+      else if (/^[A-Z]/.test(word)) kind = "type";
+
+      push(word, kind);
+      i += word.length;
+      continue;
+    }
+    push(line[i], "punc");
+    i += 1;
+  }
+  return out;
+}
+
+function CodeBlock({ code, lang, caret }: { code: string; lang: Lang; caret: boolean }) {
+  const lines = code.split("\n");
+  return (
+    <code className="block">
+      {lines.map((line, n) => (
+        <span key={n} className="flex">
+          <span aria-hidden className="w-8 shrink-0 select-none pr-3 text-right text-[#9fd6cd]/25 text-[11px]">
+            {n + 1}
+          </span>
+          <span className="whitespace-pre">
+            {tokenizeLine(line, lang).map((t, k) => (
+              <span key={k} className={COLOR[t.kind]}>
+                {t.text}
+              </span>
+            ))}
+            {line === "" && " "}
+            {caret && n === lines.length - 1 && (
+              <span
+                aria-hidden
+                className="ml-0.5 inline-block h-[1.1em] w-[6px] translate-y-[2px] bg-[#5eead4] animate-pulse"
+              />
+            )}
+          </span>
+        </span>
+      ))}
+    </code>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Extremely short snippets – designed for typewriter speed            */
+/* ------------------------------------------------------------------ */
+
+const layers = [
+  {
+    word: "front end",
+    file: "OrderButton.tsx",
+    lang: "tsx" as Lang,
+    label: "TSX",
+    note: "Click → request",
+    code: `export function OrderButton({ id }) {
+  const order = () =>
+    fetch("/api/orders", {
+      method: "POST",
+      body: JSON.stringify({ id }),
+    });
+  return <button onClick={order}>Order</button>;
+}`,
+  },
+  {
+    word: "back end",
+    file: "orders/route.ts",
+    lang: "ts" as Lang,
+    label: "TS",
+    note: "Request → query",
+    code: `export async function POST(req: Request) {
+  const { id } = await req.json();
+  const order = await db.insert(orders).values({ itemId: id });
+  return Response.json(order, { status: 201 });
+}`,
+  },
+  {
+    word: "database",
+    file: "schema.sql",
+    lang: "sql" as Lang,
+    label: "SQL",
+    note: "Query → row",
+    code: `create table orders (
+  id         serial primary key,
+  item_id    int not null,
+  created_at timestamptz default now()
+);`,
+  },
+];
 
 const socials = [
   { name: "GitHub", icon: Github, href: "https://github.com/AananMunna" },
@@ -24,179 +185,360 @@ const socials = [
   },
 ];
 
+const EASE = [0.22, 1, 0.36, 1] as const;
+
 export default function Hero() {
   const [reduce, setReduce] = useState(false);
+  const [active, setActive] = useState(0);
+  const [touched, setTouched] = useState(false);
+
+  // typewriter
+  const [typed, setTyped] = useState("");
+  const [typing, setTyping] = useState(false);
+  const typeRef = useRef<number | null>(null);
+
+  // photo popup
+  const [peek, setPeek] = useState(false);
+  const peekRef = useRef<HTMLDivElement>(null);
+  const closeTimer = useRef<number | undefined>(undefined);
+  const pointerType = useRef<string>("mouse");
 
   useEffect(() => {
     setReduce(window.matchMedia("(prefers-reduced-motion: reduce)").matches);
   }, []);
 
-  const mouseX = useMotionValue(0);
-  const mouseY = useMotionValue(0);
-  const spring = { damping: 32, stiffness: 120 };
-  const sx = useSpring(mouseX, spring);
-  const sy = useSpring(mouseY, spring);
-  const glowX = useTransform(sx, [-1, 1], ["-12%", "12%"]);
-  const glowY = useTransform(sy, [-1, 1], ["-12%", "12%"]);
+  // Autoplay (cheap)
+  useEffect(() => {
+    if (reduce || touched) return;
+    const id = window.setInterval(() => setActive((a) => (a + 1) % layers.length), 4800);
+    return () => window.clearInterval(id);
+  }, [reduce, touched]);
+
+  // Typewriter effect
+  useEffect(() => {
+    if (reduce) {
+      setTyped(layers[active].code);
+      setTyping(false);
+      return;
+    }
+
+    // clear previous typing
+    if (typeRef.current) window.clearTimeout(typeRef.current);
+    setTyped("");
+    setTyping(true);
+
+    const full = layers[active].code;
+    let i = 0;
+
+    const tick = () => {
+      i += 1;
+      setTyped(full.slice(0, i));
+      if (i < full.length) {
+        // faster on spaces / newlines, slightly slower on symbols
+        const char = full[i - 1];
+        const delay = char === "\n" ? 28 : char === " " ? 12 : 16 + Math.random() * 10;
+        typeRef.current = window.setTimeout(tick, delay);
+      } else {
+        setTyping(false);
+      }
+    };
+
+    typeRef.current = window.setTimeout(tick, 180); // small pause before typing starts
+
+    return () => {
+      if (typeRef.current) window.clearTimeout(typeRef.current);
+    };
+  }, [active, reduce]);
+
+  const pick = (i: number) => {
+    setTouched(true);
+    setActive(i);
+  };
+
+  /* photo popup */
+  const openPeek = () => {
+    window.clearTimeout(closeTimer.current);
+    setPeek(true);
+  };
+  const closePeek = () => {
+    window.clearTimeout(closeTimer.current);
+    closeTimer.current = window.setTimeout(() => setPeek(false), 120);
+  };
+
+  useEffect(() => () => window.clearTimeout(closeTimer.current), []);
 
   useEffect(() => {
-    if (reduce) return;
-    const onMove = (e: MouseEvent) => {
-      mouseX.set((e.clientX / window.innerWidth - 0.5) * 2);
-      mouseY.set((e.clientY / window.innerHeight - 0.5) * 2);
+    if (!peek) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setPeek(false);
+    const onDown = (e: PointerEvent) => {
+      if (!peekRef.current?.contains(e.target as Node)) setPeek(false);
     };
-    window.addEventListener("mousemove", onMove, { passive: true });
-    return () => window.removeEventListener("mousemove", onMove);
-  }, [mouseX, mouseY, reduce]);
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("pointerdown", onDown);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("pointerdown", onDown);
+    };
+  }, [peek]);
 
-  const name = "AANAN";
-  const surname = "MUNNA";
+  const rise = (delay: number) =>
+    reduce
+      ? {}
+      : {
+          initial: { opacity: 0, y: 14 },
+          animate: { opacity: 1, y: 0 },
+          transition: { duration: 0.55, delay, ease: EASE },
+        };
+
+  const current = layers[active];
+
+  const word = (i: number) => (
+    <button
+      type="button"
+      aria-pressed={active === i}
+      aria-controls="layer-panel"
+      onMouseEnter={() => pick(i)}
+      onFocus={() => pick(i)}
+      onClick={() => pick(i)}
+      className={`hover-target inline cursor-pointer underline decoration-2 underline-offset-[7px] transition-colors duration-200 ${
+        active === i ? "text-accent decoration-accent" : "text-fg decoration-fg/20 hover:decoration-fg/50"
+      }`}
+    >
+      {layers[i].word}
+    </button>
+  );
 
   return (
-    <section className="relative pt-25 flex min-h-[100svh] items-center overflow-hidden bg-bg">
-      {/* soft ambient glow */}
-      {!reduce && (
-        <motion.div
-          style={{ x: glowX, y: glowY }}
-          className="pointer-events-none absolute left-1/2 top-1/2 z-0 h-[70vmax] w-[70vmax] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-tr from-accent/15 via-accent/5 to-transparent blur-[120px]"
+    <section className="relative bg-bg">
+      {/* very light background – almost nothing */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="hero-ambient absolute inset-0" />
+        <div
+          className="absolute inset-0 opacity-40"
+          style={{
+            backgroundImage: "radial-gradient(rgba(128,128,128,0.12) 1px, transparent 1px)",
+            backgroundSize: "28px 28px",
+            maskImage: "radial-gradient(ellipse 65% 55% at 55% 45%, black 15%, transparent 70%)",
+            WebkitMaskImage: "radial-gradient(ellipse 65% 55% at 55% 45%, black 15%, transparent 70%)",
+          }}
         />
-      )}
+      </div>
 
-      {/* vignette */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 z-0"
-        style={{
-          background:
-            "radial-gradient(ellipse 80% 70% at 50% 45%, transparent 40%, rgba(3,5,12,0.55))",
-        }}
-      />
-
-      <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-col-reverse items-center gap-12 px-5 py-16 sm:px-8 lg:flex-row lg:items-center lg:justify-between lg:gap-16 lg:px-12 lg:py-0">
+      <div className="relative z-10 mx-auto flex min-h-[100svh] w-full max-w-7xl flex-col items-center justify-center gap-12 px-5 pb-16 pt-28 sm:px-8 lg:flex-row lg:justify-between lg:gap-12 lg:px-12 lg:pb-20 lg:pt-32">
         {/* LEFT */}
-        <div className="flex w-full flex-col items-center text-center lg:max-w-[55%] lg:items-start lg:text-left">
-          {/* Name */}
-          <h1 className="font-display font-bold uppercase leading-[0.82] tracking-tighter">
-            <span className="block overflow-hidden">
-              {name.split("").map((letter, i) => (
-                <motion.span
-                  key={`n-${i}`}
-                  initial={reduce ? false : { y: "110%", opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{
-                    duration: 0.7,
-                    delay: 0.12 + i * 0.045,
-                    ease: [0.16, 1, 0.3, 1],
-                  }}
-                  className="inline-block text-[clamp(3.2rem,13vw,7.8rem)] text-transparent bg-clip-text bg-gradient-to-b from-white to-white/50"
-                >
-                  {letter}
-                </motion.span>
-              ))}
-            </span>
-            <span className="mt-[-0.06em] block overflow-hidden">
-              {surname.split("").map((letter, i) => (
-                <motion.span
-                  key={`s-${i}`}
-                  initial={reduce ? false : { y: "110%", opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{
-                    duration: 0.7,
-                    delay: 0.32 + i * 0.045,
-                    ease: [0.16, 1, 0.3, 1],
-                  }}
-                  className="inline-block text-[clamp(3.2rem,13vw,7.8rem)] italic text-accent drop-shadow-[0_0_40px_rgba(0,255,136,0.2)]"
-                >
-                  {letter}
-                </motion.span>
-              ))}
-            </span>
-          </h1>
-
-          {/* Role + Description */}
+        <div className="flex w-full flex-col items-center text-center lg:max-w-[48%] lg:items-start lg:text-left">
+          {/* Signature */}
           <motion.div
-            initial={reduce ? false : { opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.75, ease: [0.16, 1, 0.3, 1] }}
-            className="mt-8 max-w-md"
+            {...rise(0.05)}
+            ref={peekRef}
+            className="relative flex items-center gap-3.5"
+            onPointerEnter={(e) => e.pointerType === "mouse" && openPeek()}
+            onPointerLeave={(e) => e.pointerType === "mouse" && closePeek()}
+            onFocus={() => pointerType.current !== "touch" && openPeek()}
+            onBlur={(e) => {
+              if (!e.currentTarget.contains(e.relatedTarget as Node)) closePeek();
+            }}
           >
-            {/* Highlighted Role */}
-            <div className="inline-flex flex-col items-center lg:items-start">
-              <p className="font-mono text-[13px] sm:text-[15px] font-semibold uppercase tracking-[0.28em] text-accent">
-                Full Stack Developer
-              </p>
-
-              {/* Animated underline */}
-              <motion.div
-                initial={reduce ? false : { scaleX: 0 }}
-                animate={{ scaleX: 1 }}
-                transition={{ duration: 0.85, delay: 1.05, ease: [0.16, 1, 0.3, 1] }}
-                className="mt-2.5 h-[2px] w-full origin-left bg-gradient-to-r from-accent via-accent/70 to-transparent"
+            <button
+              type="button"
+              aria-expanded={peek}
+              aria-label="Show a larger photo and details"
+              onPointerDown={(e) => {
+                pointerType.current = e.pointerType;
+              }}
+              onClick={() => pointerType.current === "touch" && setPeek((p) => !p)}
+              className="hover-target group relative shrink-0 cursor-pointer rounded-full outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+            >
+              <img
+                src={PHOTO_SRC}
+                alt=""
+                width={48}
+                height={48}
+                className="relative h-12 w-12 select-none rounded-full border hairline object-cover object-top transition-transform duration-300 group-hover:scale-[1.04]"
+                draggable={false}
               />
+            </button>
+            <div className="text-left">
+              <p className="text-[15px] font-medium leading-tight text-fg">Aanan Munna</p>
+              <p className="mt-0.5 font-mono text-[12.5px] font-medium leading-tight text-accent">Full Stack Developer</p>
             </div>
 
-            {/* Short senior description */}
-            <p className="mt-5 text-[15px] leading-relaxed text-muted sm:text-base">
-              I design and build scalable systems with clean architecture, strong performance, and production-ready quality.
-            </p>
+            <AnimatePresence>
+              {peek && (
+                <div className="absolute left-1/2 top-full z-50 w-[min(280px,86vw)] -translate-x-1/2 pt-3 lg:left-0 lg:translate-x-0">
+                  <motion.div
+                    role="dialog"
+                    aria-label="About Aanan Munna"
+                    initial={reduce ? { opacity: 0 } : { opacity: 0, y: 8, scale: 0.97 }}
+                    animate={reduce ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1 }}
+                    exit={reduce ? { opacity: 0 } : { opacity: 0, y: 4, scale: 0.98 }}
+                    transition={{ duration: 0.22, ease: EASE }}
+                    className="glass relative origin-top overflow-hidden rounded-2xl border hairline p-2 text-left shadow-xl lg:origin-top-left"
+                  >
+                    <div className="relative overflow-hidden rounded-xl">
+                      <img
+                        src={PHOTO_SRC}
+                        alt="Aanan Munna, Full Stack Developer"
+                        width={560}
+                        height={700}
+                        className="block aspect-[4/5] max-h-[42svh] w-full select-none object-cover object-top"
+                        draggable={false}
+                      />
+                    </div>
+
+                    <div className="px-2.5 pb-2 pt-3">
+                      <p className="text-[16px] font-semibold tracking-[-0.01em] text-fg">Aanan Munna</p>
+                      <p className="mt-0.5 font-mono text-[12px] font-medium text-accent">Full Stack Developer</p>
+
+                      <p className="mt-2.5 flex items-center gap-1.5 text-[13px] text-muted">
+                        <MapPin size={13} strokeWidth={1.8} />
+                        Kushtia, Bangladesh
+                      </p>
+
+                      <ul className="mt-2.5 flex flex-wrap gap-1.5">
+                        {["Next.js", "Node", "Postgres"].map((t) => (
+                          <li
+                            key={t}
+                            className="rounded-full border hairline bg-white/[0.04] px-2.5 py-1 font-mono text-[10.5px] text-fg/80"
+                          >
+                            {t}
+                          </li>
+                        ))}
+                      </ul>
+
+                      <Link
+                        href="/contact"
+                        className="hover-target mt-3.5 inline-flex items-center gap-1.5 text-[13px] font-medium text-accent underline-offset-4 hover:underline"
+                      >
+                        Say hello <ArrowUpRight size={13} />
+                      </Link>
+                    </div>
+                  </motion.div>
+                </div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+
+          {/* Headline */}
+          <motion.h1
+            {...rise(0.12)}
+            className="mt-7 text-[clamp(2rem,4.2vw,3.25rem)] font-semibold leading-[1.18] tracking-[-0.02em] text-fg"
+          >
+            I build the {word(0)}, the {word(1)} and the {word(2)}.
+          </motion.h1>
+
+          <motion.p
+            {...rise(0.22)}
+            className="mt-5 max-w-[34rem] text-[15.5px] leading-[1.65] text-muted sm:text-[16.5px]"
+          >
+            Mostly Next.js, Node and Postgres. I learned by shipping real projects, and I care more about things working well than looking clever.
+          </motion.p>
+
+          <motion.div {...rise(0.3)} className="mt-7 flex flex-wrap justify-center gap-3 lg:justify-start">
+            <a href="#work" className="hover-target btn-primary">
+              View work
+            </a>
+            <Link href="/contact" className="hover-target btn-ghost">
+              Get in touch <ArrowUpRight size={15} />
+            </Link>
           </motion.div>
 
           {/* Socials */}
-          <motion.div
-            initial={reduce ? false : { opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 1.0, ease: [0.16, 1, 0.3, 1] }}
-            className="mt-9 flex flex-col items-center gap-6 sm:flex-row sm:items-center lg:items-start"
-          >
-            <div className="flex items-center gap-4">
-              {socials.map((social) => {
-                const Icon = social.icon;
-                return (
-                  <a
-                    key={social.name}
-                    href={social.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={social.name}
-                    className="text-white/50 hover:text-accent transition-colors duration-300 hover-target"
-                  >
-                    <Icon size={18} strokeWidth={1.5} />
-                  </a>
-                );
-              })}
-            </div>
+          <motion.div {...rise(0.36)} className="mt-8 flex flex-wrap items-center justify-center gap-2 lg:justify-start">
+            {socials.map((social) => {
+              const Icon = social.icon;
+              return (
+                <a
+                  key={social.name}
+                  href={social.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={social.name}
+                  title={social.name}
+                  className="hover-target flex h-9 w-9 items-center justify-center rounded-full border hairline bg-white/[0.03] text-fg/60 transition-colors duration-200 hover:border-accent hover:text-accent"
+                >
+                  <Icon size={16} strokeWidth={1.6} />
+                </a>
+              );
+            })}
           </motion.div>
         </div>
 
-        {/* RIGHT: Portrait */}
+        {/* RIGHT – iOS-style terminal (static, no mouse follow) */}
         <motion.div
-          initial={reduce ? false : { opacity: 0, scale: 0.94, y: 24 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          transition={{ duration: 0.9, delay: 0.55, ease: [0.16, 1, 0.3, 1] }}
-          className="relative w-[min(58vw,240px)] shrink-0 sm:w-[220px] lg:w-[min(28vw,320px)]"
+          initial={reduce ? false : { opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.18, ease: EASE }}
+          className="relative w-full max-w-[520px] shrink-0 lg:w-[47%]"
         >
-          {/* corner marks */}
-          <span className="absolute -left-2.5 -top-2.5 z-20 h-5 w-5 border-l border-t border-accent/50 sm:-left-3 sm:-top-3 sm:h-6 sm:w-6" />
-          <span className="absolute -right-2.5 -top-2.5 z-20 h-5 w-5 border-r border-t border-accent/50 sm:-right-3 sm:-top-3 sm:h-6 sm:w-6" />
-          <span className="absolute -bottom-2.5 -left-2.5 z-20 h-5 w-5 border-b border-l border-accent/50 sm:-bottom-3 sm:-left-3 sm:h-6 sm:w-6" />
-          <span className="absolute -bottom-2.5 -right-2.5 z-20 h-5 w-5 border-b border-r border-accent/50 sm:-bottom-3 sm:-right-3 sm:h-6 sm:w-6" />
-
-          <img
-            src={PHOTO_SRC}
-            alt="Aanan Munna — Full Stack Developer"
-            width={640}
-            height={800}
-            className="relative z-10 block h-auto w-full select-none"
-            style={{
-              filter: "grayscale(15%) contrast(1.05) brightness(0.93)",
-              clipPath: "polygon(0 0, 100% 0, 100% 93%, 90% 100%, 0 100%)",
-            }}
-            draggable={false}
+          {/* very subtle teal glow – static */}
+          <div
+            aria-hidden
+            className="absolute -inset-4 -z-10 rounded-[1.8rem] bg-[radial-gradient(50%_50%_at_50%_40%,rgba(45,212,191,0.18),transparent)] blur-xl"
           />
 
-          <p className="mt-4 text-center font-mono text-[9px] uppercase tracking-[0.2em] text-muted/70 lg:text-left">
-            Aanan Munna · Dhaka
-          </p>
+          {/* Terminal window – completely static */}
+          <div className="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0a0f0e] shadow-[0_25px_50px_-20px_rgba(0,0,0,0.6)]">
+            {/* iOS-style title bar */}
+            <div className="relative flex items-center gap-2 border-b border-white/[0.06] bg-[#0d1413] px-3.5 py-2.5">
+              {/* traffic lights */}
+              <div className="flex gap-1.5">
+                <span className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" />
+                <span className="h-2.5 w-2.5 rounded-full bg-[#febc2e]" />
+                <span className="h-2.5 w-2.5 rounded-full bg-[#28c840]" />
+              </div>
+
+              {/* centered title – classic iOS Terminal feel */}
+              <div className="absolute inset-x-0 flex justify-center pointer-events-none">
+                <span className="font-mono text-[11px] text-white/40 truncate max-w-[60%]">
+                  {current.file}
+                </span>
+              </div>
+            </div>
+
+            {/* tabs (very light) */}
+            <div className="flex border-b border-white/[0.04] bg-[#0a0f0e] px-1">
+              {layers.map((l, i) => (
+                <button
+                  key={l.file}
+                  type="button"
+                  aria-pressed={active === i}
+                  onMouseEnter={() => pick(i)}
+                  onFocus={() => pick(i)}
+                  onClick={() => pick(i)}
+                  className={`relative px-3 py-2 font-mono text-[11px] transition-colors duration-150 ${
+                    active === i ? "text-[#d5f5f1]" : "text-white/30 hover:text-white/55"
+                  }`}
+                >
+                  {l.file}
+                  {active === i && (
+                    <span className="absolute inset-x-2 bottom-0 h-px bg-[#5eead4]/70" />
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {/* code area */}
+            <div
+              id="layer-panel"
+              aria-live="polite"
+              className="relative min-h-[17.5rem] overflow-x-auto px-3 pb-4 pt-3 sm:min-h-[18.5rem]"
+            >
+              <pre className="font-mono text-[12px] leading-[1.7] sm:text-[12.5px]">
+                <CodeBlock code={typed} lang={current.lang} caret={typing || (!reduce && typed.length > 0)} />
+              </pre>
+            </div>
+
+            {/* status bar */}
+            <div className="flex items-center justify-between border-t border-white/[0.05] bg-[#0d1413] px-3.5 py-1.5 font-mono text-[10.5px] text-white/35">
+              <span className="flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#5eead4]/80" />
+                <span className="text-[#5eead4]/90">0{active + 1}/03</span>
+                <span className="text-white/40">· {current.note}</span>
+              </span>
+              <span className="hidden sm:inline">{current.label}</span>
+            </div>
+          </div>
         </motion.div>
       </div>
     </section>

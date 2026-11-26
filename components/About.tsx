@@ -4,7 +4,7 @@ import { motion, useScroll, useTransform } from 'motion/react';
 import { useRef } from 'react';
 
 const text =
-  "I'm Aanan Munna. I build systems that scale, stay maintainable, and hold up under real pressure. Clean architecture over clever hacks. Clarity over complexity.";
+  "I'm Aanan, 24, from Kushtia. I build web apps for a living. I didn't come through a CS degree. I learned by shipping things and fixing what broke.";
 
 export default function About() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -34,7 +34,7 @@ export default function About() {
             <p className="font-mono text-xs uppercase tracking-widest text-muted">
               Based in
               <br />
-              <span className="text-fg">Dhaka, Bangladesh</span>
+              <span className="text-fg">Kushtia, Bangladesh</span>
             </p>
           </div>
         </div>
@@ -76,7 +76,7 @@ export default function About() {
                 HOW I WORK
               </h3>
               <p className="text-fg/70 leading-relaxed text-lg">
-                I think in systems, not just features. Before writing a line of code I map the trade-offs — performance, maintainability, and long-term cost. The goal is always the same: software that stays clean as it grows.
+                I start by asking what can go wrong: bad data, two people clicking at once, a payment that only half works. Then I build the normal path. I'd rather write boring code that's easy to change than something clever I have to explain later.
               </p>
             </motion.div>
 
@@ -90,7 +90,7 @@ export default function About() {
                 WHAT YOU GET
               </h3>
               <p className="text-fg/70 leading-relaxed text-lg">
-                Ownership. Clear communication. Fast feedback loops. I don’t wait for problems to surface — I anticipate them, raise the right questions early, and deliver solutions that hold up in production.
+                Someone who owns a feature from the database to the UI. I ask questions early, tell you when something is taking longer than I thought, and I don't disappear after the first commit.
               </p>
             </motion.div>
           </div>

@@ -25,6 +25,9 @@ const getCardLayout = (index: number) => {
   }
 };
 
+const workLabel = (type: 'company' | 'personal') =>
+  type === 'company' ? 'Company work' : 'Personal project';
+
 const getImageRatio = (index: number) =>
   index % 3 === 1 ? 'aspect-[16/10]' : 'aspect-[7/5]';
 
@@ -176,9 +179,24 @@ export default function ProjectsAppStore({ onOpen }: Props) {
                       : 'flex-col sm:flex-row sm:items-start sm:justify-between sm:gap-6'
                   }`}
                 >
-                  <h3 className="max-w-[16ch] font-display text-2xl font-medium leading-tight tracking-tight text-fg sm:max-w-[20ch] sm:text-3xl md:max-w-[18ch] lg:max-w-[22ch]">
-                    {project.title}
-                  </h3>
+                  <div>
+                    <p
+                      className={`mb-2 flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.14em] ${
+                        project.workType === 'company' ? 'text-accent' : 'text-muted'
+                      }`}
+                    >
+                      <span
+                        aria-hidden="true"
+                        className={`h-1.5 w-1.5 rounded-full ${
+                          project.workType === 'company' ? 'bg-accent' : 'bg-fg/30'
+                        }`}
+                      />
+                      {workLabel(project.workType)}
+                    </p>
+                    <h3 className="max-w-[16ch] font-display text-2xl font-medium leading-tight tracking-tight text-fg sm:max-w-[20ch] sm:text-3xl md:max-w-[18ch] lg:max-w-[22ch]">
+                      {project.title}
+                    </h3>
+                  </div>
 
                   <ul
                     className={`flex flex-wrap gap-2 ${

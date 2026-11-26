@@ -1,28 +1,26 @@
 import type {Metadata} from 'next';
-import { Share_Tech_Mono, Syne, Syne_Mono } from 'next/font/google';
+import { Inter, JetBrains_Mono } from 'next/font/google';
+import Navbar from '@/components/Navbar';
+import Footer from '@/components/Footer';
 import SmoothScroll from '@/components/SmoothScroll';
 import './globals.css';
 
-const shareTechMono = Share_Tech_Mono({
-  weight: '400',
+const inter = Inter({
   subsets: ['latin'],
-  variable: '--font-share-tech-mono',
+  variable: '--font-inter',
+  display: 'swap',
 });
 
-const syne = Syne({
+const jetbrains = JetBrains_Mono({
   subsets: ['latin'],
-  variable: '--font-syne',
-});
-
-const syneMono = Syne_Mono({
-  weight: '400',
-  subsets: ['latin'],
-  variable: '--font-syne-mono',
+  variable: '--font-jetbrains',
+  display: 'swap',
 });
 
 export const metadata: Metadata = {
-  title: 'Aanan | Full Stack Developer',
-  description: 'A cutting-edge front-end developer portfolio',
+  title: { default: 'Aanan Munna | Full Stack Developer', template: '%s | Aanan Munna' },
+  description:
+    'Full Stack Developer building production SaaS, marketplace and logistics platforms with Next.js, React, Node.js, PostgreSQL and MongoDB.',
   icons: {
     icon: [
       { url: '/favicon.ico', sizes: 'any' },
@@ -36,11 +34,20 @@ export const metadata: Metadata = {
 
 export default function RootLayout({children}: {children: React.ReactNode}) {
   return (
-    <html lang="en" className={`${shareTechMono.variable} ${syne.variable} ${syneMono.variable}`}>
+    <html lang="en" suppressHydrationWarning className={`${inter.variable} ${jetbrains.variable}`}>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var t=localStorage.getItem("theme");document.documentElement.dataset.theme=t==="light"?"light":"dark"}catch(e){document.documentElement.dataset.theme="dark"}`,
+          }}
+        />
+      </head>
       <body suppressHydrationWarning>
         <SmoothScroll>
           <div className="noise-bg"></div>
+          <Navbar />
           {children}
+          <Footer />
         </SmoothScroll>
       </body>
     </html>
