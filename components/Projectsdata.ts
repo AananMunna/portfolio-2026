@@ -22,6 +22,8 @@ export interface Project {
   github: string;
   /** Backend repo, when it lives in a separate repository. */
   githubBackend?: string;
+  /** Whether this came from a job/client (company) or is my own project (personal). */
+  workType: 'company' | 'personal';
   /** Shown instead of a Live button when there is no public link. */
   liveNote?: string;
   tags: string[];
@@ -39,9 +41,157 @@ export interface Project {
 
 export const projects: Project[] = [
   {
+    id: 8,
+    title: 'Eqrah',
+    category: 'EdTech SaaS',
+    workType: 'company',
+    image: '/images/eqrah.webp',
+    year: '2025–2026',
+    description:
+      'A multi-tenant school management SaaS. I built most of the frontend (students, fee collection, documents, ID cards and every certificate type) and added some REST APIs on the Node/Express backend.',
+    link: '', // no public live link
+    github: '', // private
+    githubBackend: '', // private
+    liveNote:
+      'No public live link. This is a company project, and company policy doesn’t allow sharing it publicly.',
+    tags: ['next.js', 'react', 'redux', 'typescript', 'node.js', 'express', 'mongodb', 'ant design'],
+
+    tagline: 'Complete educational management system for schools.',
+    role: 'Front-end Developer + some backend APIs',
+    type: 'Multi-tenant EdTech SaaS',
+    status: 'Live',
+
+    overview:
+      'Eqrah is a multi-tenant school management system used by real schools. It covers students, teachers, exams, attendance, fees, certificates, ID cards, HR, hostel and finance. At Al Jaami I owned a large part of the frontend (students, fee collection, documents, ID cards and all the certificate types) and also wrote and maintained some of the REST APIs.',
+
+    problem:
+      'A lot of schools in Bangladesh still run on spreadsheets, paper and a few tools that don’t talk to each other. Handling students, fees, exams, attendance and certificates across several institutions needs a secure multi-tenant system with proper roles.',
+
+    solution:
+      'Eqrah is a multi-tenant SaaS where each school’s data is isolated, roles control access, and the modules follow how schools actually work. My part was the React/Next.js frontend for the most-used screens and some of the Express and MongoDB APIs behind them. It was a team project.',
+
+    features: [
+      {
+        title: 'Students',
+        desc: 'Enrolment, profiles, search, promotion and documents.',
+      },
+      {
+        title: 'Fee collection',
+        desc: 'Fee heads, collection, dues, late fines, receipts and daily reports.',
+      },
+      {
+        title: 'ID cards and certificates',
+        desc: 'Student ID cards with QR, admit cards, transfer certificates, experience letters and testimonials, with bulk generation.',
+      },
+      {
+        title: 'Exams and results',
+        desc: 'Mark entry, tabulation, publishing results, hall tickets and performance reports.',
+      },
+      {
+        title: 'Attendance',
+        desc: 'Daily and exam attendance, leave management and reports.',
+      },
+      {
+        title: 'Multi-tenant setup',
+        desc: 'A central database plus tenant databases, with tenant-aware APIs so schools stay isolated.',
+      },
+      {
+        title: 'Admin dashboard',
+        desc: 'KPIs, attendance ring, income and expense, account charts, calendar and notice board.',
+      },
+    ],
+
+    challenges: [
+      {
+        challenge: 'Dense screens that non-technical school staff can actually use.',
+        solution:
+          'Fee collection, mark entry and certificates have a lot of fields. I kept a clear hierarchy, used the same form patterns everywhere and hid secondary options until needed, so common tasks stay short.',
+      },
+      {
+        challenge: 'Keeping frontend state and the tenant APIs in sync across many modules.',
+        solution:
+          'Redux Toolkit with RTK Query, careful cache invalidation, and the tenant header sent on every request.',
+      },
+      {
+        challenge: 'Print-ready ID cards and certificates with QR codes.',
+        solution:
+          'I built separate print layouts and generation flows, with QR support and batch printing.',
+      },
+    ],
+  },
+  {
+    id: 9,
+    title: 'Mohidul',
+    category: 'Client Portfolio',
+    workType: 'company',
+    image: '/images/mohidul.webp',
+    year: '2025',
+    description:
+      'Personal portfolio for a professional UI/UX designer. Built from scratch with Next.js so he can showcase his work and grow his design business.',
+    link: 'https://www.mohidul.me/',
+    github: '', // client project, private
+    githubBackend: '',
+    tags: ['next.js', 'react', 'typescript', 'tailwind', 'framer motion'],
+
+    tagline: 'Clean portfolio for a UI/UX designer running his own practice.',
+    role: 'Front-end Developer',
+    type: 'Client portfolio website',
+    status: 'Live',
+
+    overview:
+      'Mohidul is a portfolio site for a UI/UX designer who came to Al Jaami Technologies to get his work online and support his design business. I built it in Next.js to show his work clearly, tell the story of each project and load fast.',
+
+    problem:
+      'He was starting his own practice, so a generic template wasn’t going to work. The site had to be as polished as his design work, load fast, look good on every device and make it easy for a client to see what he does and get in touch.',
+
+    solution:
+      'I built a custom Next.js portfolio with a clear visual hierarchy, light motion and structured case study pages. I kept the design and animation restrained so his work is what people look at.',
+
+    features: [
+      {
+        title: 'Case study pages',
+        desc: 'Each project has its own page showing the process, the decisions and the result.',
+      },
+      {
+        title: 'Clear hierarchy',
+        desc: 'Type, spacing and layout kept simple and consistent.',
+      },
+      {
+        title: 'Light motion',
+        desc: 'Small Framer Motion transitions that support the content.',
+      },
+      {
+        title: 'Responsive',
+        desc: 'Works from mobile to large desktop screens.',
+      },
+      {
+        title: 'Fast',
+        desc: 'Next.js App Router with optimised images.',
+      },
+      {
+        title: 'Easy to contact',
+        desc: 'Clear calls to action so potential clients can reach him quickly.',
+      },
+    ],
+
+    challenges: [
+      {
+        challenge: 'Meeting a professional designer’s own standards.',
+        solution:
+          'I kept the interface minimal and precise: strong hierarchy, consistent spacing and nothing decorative. His work stays the focus.',
+      },
+      {
+        challenge: 'Case studies that are easy to read.',
+        solution:
+          'Every project page follows the same order (problem, process, outcome) with restrained motion.',
+      },
+    ],
+  },
+  {
     id: 1,
     title: 'CourierGo',
     category: 'Logistics Platform',
+    workType: 'personal',
     image: '/images/courier.png',
     year: '2025',
     description:
@@ -137,6 +287,7 @@ export const projects: Project[] = [
     id: 7,
     title: 'RentNest',
     category: 'Rental Marketplace',
+    workType: 'personal',
     image: '/images/rent.jpg',
     year: '2026',
     description:
@@ -218,78 +369,80 @@ export const projects: Project[] = [
       },
     ],
   },
-  {
-    id: 2,
-    title: 'TripTale',
-    category: 'Travel Platform',
-    image: '/images/triptale.png',
-    year: '2024',
-    description:
-      'A full-stack travel community where people share trips as stories. Auth, maps, a feed and a REST API, all built by me.',
-    link: 'https://peppy-youtiao-479900.netlify.app/',
-    github: 'https://github.com/AananMunna/trip-tale-client',
-    githubBackend: '', // TODO: add the server repo URL
-    tags: ['react', 'express', 'mongodb', 'tailwind'],
 
-    tagline: 'A travel community where the story matters more than the photo.',
-    role: 'Full-stack Developer',
-    type: 'Full-stack web application',
-    status: 'Live',
-
-    overview:
-      'TripTale is a travel site where people write about their trips instead of only posting photos. I built all of it: login, REST API, database models, the feed, and stories linked to places on a map.',
-
-    problem:
-      'Most travel platforms are about pictures. Where you went, what happened and what you’d tell a friend gets lost. I wanted a place where a trip is written as a story with a location attached.',
-
-    solution:
-      'Users sign up, publish stories tied to real places, browse a community feed and interact with other travellers. The backend is an Express and MongoDB API, and the frontend is a React app with protected routes.',
-
-    features: [
-      {
-        title: 'Login and protected routes',
-        desc: 'Sign up, log in, and every story belongs to a real user.',
-      },
-      {
-        title: 'Stories, not just photos',
-        desc: 'A trip is written as a narrative, with media alongside it.',
-      },
-      {
-        title: 'Maps',
-        desc: 'Stories link to real places, so readers can see where it happened.',
-      },
-      {
-        title: 'Community feed',
-        desc: 'Browse and react to other travellers’ trips.',
-      },
-      {
-        title: 'REST API',
-        desc: 'Express and MongoDB handling users, stories and community data.',
-      },
-      {
-        title: 'Responsive',
-        desc: 'Reading and publishing work on phone, tablet and desktop.',
-      },
-    ],
-
-    challenges: [
-      {
-        challenge: 'Keeping auth, API and UI consistent while working alone on the whole stack.',
-        solution:
-          'I kept client and server clearly separate, protected routes on both sides, and kept API responses predictable.',
-      },
-      {
-        challenge: 'Story pages getting heavy.',
-        solution:
-          'I optimised images, kept components small and focused on a fast first render for the feed and story pages.',
-      },
-      {
-        challenge: 'A data model that could grow.',
-        solution:
-          'Users, stories and locations were separate from the start, so adding features didn’t mean reworking the API.',
-      },
-    ],
-  },
+  //{
+  //  id: 2,
+  //  title: 'TripTale',
+  //  category: 'Travel Platform',
+  //  workType: 'personal',
+  //  image: '/images/triptale.png',
+  //  year: '2024',
+  //  description:
+  //    'A full-stack travel community where people share trips as stories. Auth, maps, a feed and a REST API, all built by me.',
+  //  link: 'https://peppy-youtiao-479900.netlify.app/',
+  //  github: 'https://github.com/AananMunna/trip-tale-client',
+  //  githubBackend: '', // TODO: add the server repo URL
+  //  tags: ['react', 'express', 'mongodb', 'tailwind'],
+  //
+  //  tagline: 'A travel community where the story matters more than the photo.',
+  //  role: 'Full-stack Developer',
+  //  type: 'Full-stack web application',
+  //  status: 'Live',
+  //
+  //  overview:
+  //    'TripTale is a travel site where people write about their trips instead of only posting photos. I built all of it: login, REST API, database models, the feed, and stories linked to places on a map.',
+  //
+  //  problem:
+  //    'Most travel platforms are about pictures. Where you went, what happened and what you’d tell a friend gets lost. I wanted a place where a trip is written as a story with a location attached.',
+  //
+  //  solution:
+  //    'Users sign up, publish stories tied to real places, browse a community feed and interact with other travellers. The backend is an Express and MongoDB API, and the frontend is a React app with protected routes.',
+  //
+  //  features: [
+  //    {
+  //      title: 'Login and protected routes',
+  //      desc: 'Sign up, log in, and every story belongs to a real user.',
+  //    },
+  //    {
+  //      title: 'Stories, not just photos',
+  //      desc: 'A trip is written as a narrative, with media alongside it.',
+  //    },
+  //    {
+  //      title: 'Maps',
+  //      desc: 'Stories link to real places, so readers can see where it happened.',
+  //    },
+  //    {
+  //      title: 'Community feed',
+  //      desc: 'Browse and react to other travellers’ trips.',
+  //    },
+  //    {
+  //      title: 'REST API',
+  //      desc: 'Express and MongoDB handling users, stories and community data.',
+  //    },
+  //    {
+  //      title: 'Responsive',
+  //      desc: 'Reading and publishing work on phone, tablet and desktop.',
+  //    },
+  //  ],
+  //
+  //  challenges: [
+  //    {
+  //      challenge: 'Keeping auth, API and UI consistent while working alone on the whole stack.',
+  //      solution:
+  //        'I kept client and server clearly separate, protected routes on both sides, and kept API responses predictable.',
+  //    },
+  //    {
+  //      challenge: 'Story pages getting heavy.',
+  //      solution:
+  //        'I optimised images, kept components small and focused on a fast first render for the feed and story pages.',
+  //    },
+  //    {
+  //      challenge: 'A data model that could grow.',
+  //      solution:
+  //        'Users, stories and locations were separate from the start, so adding features didn’t mean reworking the API.',
+  //    },
+  //  ],
+  //},
 
   // {
   //   id: 3,
@@ -546,149 +699,4 @@ export const projects: Project[] = [
   //     },
   //   ],
   // },
-  {
-    id: 8,
-    title: 'Eqrah',
-    category: 'EdTech SaaS',
-    image: '/images/eqrah.webp',
-    year: '2025–2026',
-    description:
-      'A multi-tenant school management SaaS. I built most of the frontend (students, fee collection, documents, ID cards and every certificate type) and added some REST APIs on the Node/Express backend.',
-    link: '', // no public live link
-    github: '', // private
-    githubBackend: '', // private
-    liveNote:
-      'No public live link. This is a company project, and company policy doesn’t allow sharing it publicly.',
-    tags: ['next.js', 'react', 'redux', 'typescript', 'node.js', 'express', 'mongodb', 'ant design'],
-
-    tagline: 'Complete educational management system for schools.',
-    role: 'Front-end Developer + some backend APIs',
-    type: 'Multi-tenant EdTech SaaS',
-    status: 'Live',
-
-    overview:
-      'Eqrah is a multi-tenant school management system used by real schools. It covers students, teachers, exams, attendance, fees, certificates, ID cards, HR, hostel and finance. At Al Jaami I owned a large part of the frontend (students, fee collection, documents, ID cards and all the certificate types) and also wrote and maintained some of the REST APIs.',
-
-    problem:
-      'A lot of schools in Bangladesh still run on spreadsheets, paper and a few tools that don’t talk to each other. Handling students, fees, exams, attendance and certificates across several institutions needs a secure multi-tenant system with proper roles.',
-
-    solution:
-      'Eqrah is a multi-tenant SaaS where each school’s data is isolated, roles control access, and the modules follow how schools actually work. My part was the React/Next.js frontend for the most-used screens and some of the Express and MongoDB APIs behind them. It was a team project.',
-
-    features: [
-      {
-        title: 'Students',
-        desc: 'Enrolment, profiles, search, promotion and documents.',
-      },
-      {
-        title: 'Fee collection',
-        desc: 'Fee heads, collection, dues, late fines, receipts and daily reports.',
-      },
-      {
-        title: 'ID cards and certificates',
-        desc: 'Student ID cards with QR, admit cards, transfer certificates, experience letters and testimonials, with bulk generation.',
-      },
-      {
-        title: 'Exams and results',
-        desc: 'Mark entry, tabulation, publishing results, hall tickets and performance reports.',
-      },
-      {
-        title: 'Attendance',
-        desc: 'Daily and exam attendance, leave management and reports.',
-      },
-      {
-        title: 'Multi-tenant setup',
-        desc: 'A central database plus tenant databases, with tenant-aware APIs so schools stay isolated.',
-      },
-      {
-        title: 'Admin dashboard',
-        desc: 'KPIs, attendance ring, income and expense, account charts, calendar and notice board.',
-      },
-    ],
-
-    challenges: [
-      {
-        challenge: 'Dense screens that non-technical school staff can actually use.',
-        solution:
-          'Fee collection, mark entry and certificates have a lot of fields. I kept a clear hierarchy, used the same form patterns everywhere and hid secondary options until needed, so common tasks stay short.',
-      },
-      {
-        challenge: 'Keeping frontend state and the tenant APIs in sync across many modules.',
-        solution:
-          'Redux Toolkit with RTK Query, careful cache invalidation, and the tenant header sent on every request.',
-      },
-      {
-        challenge: 'Print-ready ID cards and certificates with QR codes.',
-        solution:
-          'I built separate print layouts and generation flows, with QR support and batch printing.',
-      },
-    ],
-  },
-  {
-    id: 9,
-    title: 'Mohidul',
-    category: 'Client Portfolio',
-    image: '/images/mohidul.webp',
-    year: '2025',
-    description:
-      'Personal portfolio for a professional UI/UX designer. Built from scratch with Next.js so he can showcase his work and grow his design business.',
-    link: 'https://www.mohidul.me/',
-    github: '', // client project, private
-    githubBackend: '',
-    tags: ['next.js', 'react', 'typescript', 'tailwind', 'framer motion'],
-
-    tagline: 'Clean portfolio for a UI/UX designer running his own practice.',
-    role: 'Front-end Developer',
-    type: 'Client portfolio website',
-    status: 'Live',
-
-    overview:
-      'Mohidul is a portfolio site for a UI/UX designer who came to Al Jaami Technologies to get his work online and support his design business. I built it in Next.js to show his work clearly, tell the story of each project and load fast.',
-
-    problem:
-      'He was starting his own practice, so a generic template wasn’t going to work. The site had to be as polished as his design work, load fast, look good on every device and make it easy for a client to see what he does and get in touch.',
-
-    solution:
-      'I built a custom Next.js portfolio with a clear visual hierarchy, light motion and structured case study pages. I kept the design and animation restrained so his work is what people look at.',
-
-    features: [
-      {
-        title: 'Case study pages',
-        desc: 'Each project has its own page showing the process, the decisions and the result.',
-      },
-      {
-        title: 'Clear hierarchy',
-        desc: 'Type, spacing and layout kept simple and consistent.',
-      },
-      {
-        title: 'Light motion',
-        desc: 'Small Framer Motion transitions that support the content.',
-      },
-      {
-        title: 'Responsive',
-        desc: 'Works from mobile to large desktop screens.',
-      },
-      {
-        title: 'Fast',
-        desc: 'Next.js App Router with optimised images.',
-      },
-      {
-        title: 'Easy to contact',
-        desc: 'Clear calls to action so potential clients can reach him quickly.',
-      },
-    ],
-
-    challenges: [
-      {
-        challenge: 'Meeting a professional designer’s own standards.',
-        solution:
-          'I kept the interface minimal and precise: strong hierarchy, consistent spacing and nothing decorative. His work stays the focus.',
-      },
-      {
-        challenge: 'Case studies that are easy to read.',
-        solution:
-          'Every project page follows the same order (problem, process, outcome) with restrained motion.',
-      },
-    ],
-  },
 ];

@@ -343,6 +343,7 @@ export default function ProjectDetail({
   const meta = (
     [
       ['Client', extra.client],
+      ['Work', project.workType === 'company' ? 'Company work' : 'Personal project'],
       ['Category', project.category],
       ['Timeline', extra.timeline ?? project.year],
       ['Role', project.role],
