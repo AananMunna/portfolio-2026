@@ -283,92 +283,92 @@ export const projects: Project[] = [
       },
     ],
   },
-  {
-    id: 7,
-    title: 'RentNest',
-    category: 'Rental Marketplace',
-    workType: 'personal',
-    image: '/images/rent.jpg',
-    year: '2026',
-    description:
-      'A rental marketplace where landlords list properties and tenants send requests and pay through Stripe. Next.js 16 frontend, Express and Prisma backend.',
-    link: 'https://rentnest-frontend.vercel.app/',
-    github: 'https://github.com/AananMunna/RentNest',
-    githubBackend: '', // TODO: add the backend repo URL
-    tags: ['next.js', 'react', 'typescript', 'tailwind', 'express', 'postgresql', 'prisma', 'stripe'],
+  // {
+  //   id: 7,
+  //   title: 'RentNest',
+  //   category: 'Rental Marketplace',
+  //   workType: 'personal',
+  //   image: '/images/rent.jpg',
+  //   year: '2026',
+  //   description:
+  //     'A rental marketplace where landlords list properties and tenants send requests and pay through Stripe. Next.js 16 frontend, Express and Prisma backend.',
+  //   link: 'https://rentnest-frontend.vercel.app/',
+  //   github: 'https://github.com/AananMunna/RentNest',
+  //   githubBackend: '', // TODO: add the backend repo URL
+  //   tags: ['next.js', 'react', 'typescript', 'tailwind', 'express', 'postgresql', 'prisma', 'stripe'],
 
-    tagline: 'Find a place, request it, pay for it.',
-    role: 'Full-stack Developer',
-    type: 'Full-stack rental property marketplace',
-    status: 'Live',
+  //   tagline: 'Find a place, request it, pay for it.',
+  //   role: 'Full-stack Developer',
+  //   type: 'Full-stack rental property marketplace',
+  //   status: 'Live',
 
-    overview:
-      'RentNest connects tenants, landlords and admins. Tenants browse listings with filters, send a rental request and pay through Stripe. Landlords list properties and handle the requests. Admins keep an eye on the marketplace. The frontend is Next.js 16 with the App Router, and the backend is Express 5 with PostgreSQL and Prisma.',
+  //   overview:
+  //     'RentNest connects tenants, landlords and admins. Tenants browse listings with filters, send a rental request and pay through Stripe. Landlords list properties and handle the requests. Admins keep an eye on the marketplace. The frontend is Next.js 16 with the App Router, and the backend is Express 5 with PostgreSQL and Prisma.',
 
-    problem:
-      'Most rental sites are just listings. There is no payment, no proper flow for a request, and no way to tell what stage a lease is at. Doing it properly means separate roles, cookie-based auth, property status that updates on its own, and a payment gateway.',
+  //   problem:
+  //     'Most rental sites are just listings. There is no payment, no proper flow for a request, and no way to tell what stage a lease is at. Doing it properly means separate roles, cookie-based auth, property status that updates on its own, and a payment gateway.',
 
-    solution:
-      'I built a Next.js frontend that talks to an Express REST API (routes, controllers, services, PostgreSQL). A rental request moves through a fixed lifecycle, payments go through Stripe Checkout with webhook verification, and auth uses HTTP-only cookies.',
+  //   solution:
+  //     'I built a Next.js frontend that talks to an Express REST API (routes, controllers, services, PostgreSQL). A rental request moves through a fixed lifecycle, payments go through Stripe Checkout with webhook verification, and auth uses HTTP-only cookies.',
 
-    features: [
-      {
-        title: 'Three roles',
-        desc: 'Tenants, landlords and admins each have their own dashboard and protected pages.',
-      },
-      {
-        title: 'Search and filters',
-        desc: 'Public browsing with search, category, city, price range and sorting.',
-      },
-      {
-        title: 'Request lifecycle',
-        desc: 'PENDING → APPROVED → (payment) → ACTIVE → COMPLETED. The property’s availability updates along with it.',
-      },
-      {
-        title: 'Stripe payments',
-        desc: 'Checkout sessions for approved requests, with webhook signature verification.',
-      },
-      {
-        title: 'Landlord and admin tools',
-        desc: 'Landlords list properties and handle requests. Admins manage users, categories and listings.',
-      },
-      {
-        title: 'Reviews',
-        desc: 'A tenant can review a property only after their rental is completed.',
-      },
-      {
-        title: 'Next.js 16',
-        desc: 'App Router, Server Components and Actions, Zod validation and Radix UI.',
-      },
-      {
-        title: 'Backend',
-        desc: 'Node (ESM), Express 5, PostgreSQL with Prisma, JWT with refresh tokens and centralised error handling.',
-      },
-    ],
+  //   features: [
+  //     {
+  //       title: 'Three roles',
+  //       desc: 'Tenants, landlords and admins each have their own dashboard and protected pages.',
+  //     },
+  //     {
+  //       title: 'Search and filters',
+  //       desc: 'Public browsing with search, category, city, price range and sorting.',
+  //     },
+  //     {
+  //       title: 'Request lifecycle',
+  //       desc: 'PENDING → APPROVED → (payment) → ACTIVE → COMPLETED. The property’s availability updates along with it.',
+  //     },
+  //     {
+  //       title: 'Stripe payments',
+  //       desc: 'Checkout sessions for approved requests, with webhook signature verification.',
+  //     },
+  //     {
+  //       title: 'Landlord and admin tools',
+  //       desc: 'Landlords list properties and handle requests. Admins manage users, categories and listings.',
+  //     },
+  //     {
+  //       title: 'Reviews',
+  //       desc: 'A tenant can review a property only after their rental is completed.',
+  //     },
+  //     {
+  //       title: 'Next.js 16',
+  //       desc: 'App Router, Server Components and Actions, Zod validation and Radix UI.',
+  //     },
+  //     {
+  //       title: 'Backend',
+  //       desc: 'Node (ESM), Express 5, PostgreSQL with Prisma, JWT with refresh tokens and centralised error handling.',
+  //     },
+  //   ],
 
-    challenges: [
-      {
-        challenge: 'Keeping property availability in sync with request status.',
-        solution:
-          'A property switches to RESERVED while an agreement is active and goes back to AVAILABLE once it’s completed. This runs inside the status-change logic, so it can’t be forgotten.',
-      },
-      {
-        challenge: 'Trusting a payment without relying on the browser.',
-        solution:
-          'Stripe sends webhooks to a raw-body endpoint. I verify the signature first and only then update the payment.',
-      },
-      {
-        challenge: 'CORS and sessions between the Next.js app and the Express API.',
-        solution:
-          'Requests go through a server-side proxy, and the access token sits in an HTTP-only cookie on the Next.js domain.',
-      },
-      {
-        challenge: 'Role-based access across many routes.',
-        solution:
-          'Auth and role middleware on the API, plus Next.js middleware matchers on the dashboard routes.',
-      },
-    ],
-  },
+  //   challenges: [
+  //     {
+  //       challenge: 'Keeping property availability in sync with request status.',
+  //       solution:
+  //         'A property switches to RESERVED while an agreement is active and goes back to AVAILABLE once it’s completed. This runs inside the status-change logic, so it can’t be forgotten.',
+  //     },
+  //     {
+  //       challenge: 'Trusting a payment without relying on the browser.',
+  //       solution:
+  //         'Stripe sends webhooks to a raw-body endpoint. I verify the signature first and only then update the payment.',
+  //     },
+  //     {
+  //       challenge: 'CORS and sessions between the Next.js app and the Express API.',
+  //       solution:
+  //         'Requests go through a server-side proxy, and the access token sits in an HTTP-only cookie on the Next.js domain.',
+  //     },
+  //     {
+  //       challenge: 'Role-based access across many routes.',
+  //       solution:
+  //         'Auth and role middleware on the API, plus Next.js middleware matchers on the dashboard routes.',
+  //     },
+  //   ],
+  // },
 
   //{
   //  id: 2,
