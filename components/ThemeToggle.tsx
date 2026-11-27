@@ -16,18 +16,13 @@ import type { MouseEvent } from "react";
  *               dark -> light : exact reverse, paint climbs back up.
  *  2. "circle"  Weak devices (<=4 cores, <=4GB RAM, data-saver): cheap circular
  *               reveal growing from the toggle button (only 2 keyframes).
- *  3. "canvas"  Touch devices and browsers without View Transitions: canvas
- *               paint drip. The theme is only swapped once the screen is fully
- *               covered, so the heavy page repaint never runs mid-animation.
+ *  3. "canvas"  Browsers without View Transitions: lightweight canvas paint drip.
  *  4. "instant" prefers-reduced-motion: no animation at all.
  */
 
 const MS = 1150;
-// canvas paint only; must equal the page backgrounds in globals.css
-const PAINT = "#03050c";
-const PAINT_LIGHT = "#fbfbfd";
+const PAINT = "#03050c"; // canvas fallback only; must equal the dark page background
 const SHEEN = "rgba(255,255,255,0.09)";
-const SHEEN_LIGHT = "rgba(16,24,40,0.10)"; // edge line on the light paint
 
 let busy = false;
 
@@ -209,7 +204,6 @@ function drawCanvas(
   W: number,
   H: number,
   u: number,
-  toDark: boolean,
 ) {
   solve(f, u);
   const { xs, ys } = f;
@@ -231,20 +225,18 @@ function drawCanvas(
 
   ctx.clearRect(0, 0, W, H);
 
-  // dark paint covers what is ABOVE the front, light paint what is BELOW it
-  const base = toDark ? -4 : H + 40;
   ctx.beginPath();
-  ctx.moveTo(0, base);
+  ctx.moveTo(0, -4);
   ctx.lineTo(xs[0], ys[0]);
   trace(false);
-  ctx.lineTo(W, base);
+  ctx.lineTo(W, -4);
   ctx.closePath();
-  ctx.fillStyle = toDark ? PAINT : PAINT_LIGHT;
+  ctx.fillStyle = PAINT;
   ctx.fill();
 
   ctx.beginPath();
   trace(true);
-  ctx.strokeStyle = toDark ? SHEEN : SHEEN_LIGHT;
+  ctx.strokeStyle = SHEEN;
   ctx.lineWidth = 2;
   ctx.lineJoin = "round";
   ctx.stroke();
@@ -262,6 +254,26 @@ function drawCanvas(
     ctx.arc(s.x - r * 0.3, y + r * 0.05, r * 0.35, 0, 6.2832);
     ctx.fill();
   }
+}
+
+/**
+ * Run `done` once the page has finished repainting: 4 smooth frames in a row.
+ * Repainting a whole page after a theme swap takes far longer than 2 frames on
+ * a phone, and starting the peel during it is what made dark -> light stutter.
+ */
+function whenSettled(done: () => void) {
+  const start = performance.now();
+  let last = start;
+  let smooth = 0;
+  const check = () => {
+    const now = performance.now();
+    smooth = now - last < 40 ? smooth + 1 : 0;
+    last = now;
+    // the 900ms cap keeps slow devices from waiting forever
+    if ((smooth >= 4 && now - start > 120) || now - start > 900) done();
+    else requestAnimationFrame(check);
+  };
+  requestAnimationFrame(check);
 }
 
 function runCanvas(toDark: boolean, swap: () => void) {
@@ -298,15 +310,12 @@ function runCanvas(toDark: boolean, swap: () => void) {
   const doSwap = () => {
     if (swapped) return;
     swapped = true;
-    // no per-element colour transitions: they would repaint during the fade
+    // no per-element colour transitions: they keep repainting under the paint
     root.classList.add("theme-switching");
     swap();
   };
   let guard = 0;
-  let done = false;
   const cleanup = () => {
-    if (done) return;
-    done = true;
     window.clearTimeout(guard);
     doSwap(); // theme always ends up applied, even if frames were dropped
     root.classList.remove("theme-switching");
@@ -315,36 +324,37 @@ function runCanvas(toDark: boolean, swap: () => void) {
   };
   guard = window.setTimeout(cleanup, MS + 2500);
 
-  // Both directions: paint over the still page -> swap theme while the screen is
-  // fully covered -> wait for the repaint -> fade the paint away.
-  const frame = (t: number) =>
-    drawCanvas(ctx, field, W, H, toDark ? t : 1 - t, toDark);
-
   let t0 = 0;
   const loop = (now: number) => {
-    if (done) return;
     if (!t0) t0 = now;
-    const t = Math.min(1, (now - t0) / MS);
-    frame(t);
-    if (t < 1) {
-      requestAnimationFrame(loop);
-      return;
-    }
-    // let the fully covered frame reach the screen before the heavy swap
-    requestAnimationFrame(() => {
-      doSwap();
-      requestAnimationFrame(() =>
+    const t = (now - t0) / MS;
+    if (t >= 1) {
+      if (toDark) {
+        drawCanvas(ctx, field, W, H, 1);
+        doSwap();
         requestAnimationFrame(() => {
           canvas.style.opacity = "0";
           window.setTimeout(cleanup, 220);
-        }),
-      );
-    });
+        });
+      } else {
+        cleanup();
+      }
+      return;
+    }
+    drawCanvas(ctx, field, W, H, toDark ? t : 1 - t);
+    requestAnimationFrame(loop);
   };
 
-  frame(0);
-  document.body.appendChild(canvas);
-  requestAnimationFrame(loop);
+  if (toDark) {
+    document.body.appendChild(canvas);
+    requestAnimationFrame(loop);
+  } else {
+    // start fully covered, flip to light under the paint, then peel upward
+    drawCanvas(ctx, field, W, H, 1);
+    document.body.appendChild(canvas);
+    doSwap();
+    whenSettled(() => requestAnimationFrame(loop));
+  }
 }
 
 /* ------------------------------------------------------------------ */
