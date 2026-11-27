@@ -3,12 +3,10 @@
 import { useEffect } from 'react';
 
 /**
- * One soft "pop" for every click on something clickable (link, button, card).
- * Clicks on empty space stay silent.
+ * One sweet little "tink" for every click on something clickable (link,
+ * button, card). Clicks on empty space stay silent.
  *
- * The sound is synthesised with the Web Audio API (no audio file): a dry
- * "tick" transient, a soft low body and a faint high shine, about 60 ms in
- * total, in the spirit of the iOS keyboard click.
+ * Synthesised with the Web Audio API, so there is no audio file to download.
  */
 
 const CLICKABLE =
@@ -32,52 +30,46 @@ function pop() {
 
   const now = ac.currentTime;
   const master = ac.createGain();
-  master.gain.value = 0.9;
-  // gentle low-pass keeps it warm and "glassy" instead of harsh
+  master.gain.value = 0.85;
   const lp = ac.createBiquadFilter();
   lp.type = 'lowpass';
-  lp.frequency.value = 7000;
+  lp.frequency.value = 6000;
   master.connect(lp).connect(ac.destination);
 
-  // 1. the "tick": short, dry, woody transient (like the iOS keyboard click)
-  const nBuf = ac.createBuffer(1, Math.floor(ac.sampleRate * 0.02), ac.sampleRate);
-  const d = nBuf.getChannelData(0);
-  for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 3);
-  const noise = ac.createBufferSource();
-  noise.buffer = nBuf;
-  const bp = ac.createBiquadFilter();
-  bp.type = 'bandpass';
-  bp.frequency.value = 3200;
-  bp.Q.value = 1.4;
+  // A small mallet / music-box "tink": a C6 with soft upper partials.
+  // Quick 3 ms attack, smooth ~160 ms ring-out. Sweet, never sharp.
+  const partials: [number, number, number][] = [
+    [1046.5, 0.2, 0.16], // C6 (fundamental)
+    [2093.0, 0.07, 0.1], // C7
+    [3136.0, 0.025, 0.06], // G7, a faint sparkle
+  ];
+  for (const [freq, level, ring] of partials) {
+    const o = ac.createOscillator();
+    const g = ac.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(freq * 1.012, now); // tiny settle makes it feel soft
+    o.frequency.exponentialRampToValueAtTime(freq, now + 0.025);
+    g.gain.setValueAtTime(0.0001, now);
+    g.gain.exponentialRampToValueAtTime(level, now + 0.003);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + ring);
+    o.connect(g).connect(master);
+    o.start(now);
+    o.stop(now + ring + 0.02);
+  }
+
+  // a whisper of "tap" under it so it still reads as a click
+  const buf = ac.createBuffer(1, Math.floor(ac.sampleRate * 0.012), ac.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 4);
+  const n = ac.createBufferSource();
+  n.buffer = buf;
+  const f = ac.createBiquadFilter();
+  f.type = 'lowpass';
+  f.frequency.value = 2200;
   const ng = ac.createGain();
-  ng.gain.value = 0.55;
-  noise.connect(bp).connect(ng).connect(master);
-  noise.start(now);
-
-  // 2. the "body": a soft low thump that gives it weight
-  const thump = ac.createOscillator();
-  const tg = ac.createGain();
-  thump.type = 'sine';
-  thump.frequency.setValueAtTime(260, now);
-  thump.frequency.exponentialRampToValueAtTime(130, now + 0.05);
-  tg.gain.setValueAtTime(0.0001, now);
-  tg.gain.exponentialRampToValueAtTime(0.5, now + 0.003);
-  tg.gain.exponentialRampToValueAtTime(0.0001, now + 0.06);
-  thump.connect(tg).connect(master);
-  thump.start(now);
-  thump.stop(now + 0.07);
-
-  // 3. the "shine": a tiny high tone that fades fast, for the premium glint
-  const shine = ac.createOscillator();
-  const sg = ac.createGain();
-  shine.type = 'sine';
-  shine.frequency.setValueAtTime(2350, now);
-  sg.gain.setValueAtTime(0.0001, now);
-  sg.gain.exponentialRampToValueAtTime(0.13, now + 0.002);
-  sg.gain.exponentialRampToValueAtTime(0.0001, now + 0.045);
-  shine.connect(sg).connect(master);
-  shine.start(now);
-  shine.stop(now + 0.05);
+  ng.gain.value = 0.18;
+  n.connect(f).connect(ng).connect(master);
+  n.start(now);
 }
 
 export default function ClickSound() {

@@ -178,13 +178,6 @@ html:not([data-theme="dark"]) .shadow-2xl {
 [data-theme="dark"] .theme-sun { display: block; }
 [data-theme="dark"] .theme-moon { display: none; }
 
-/* brief fade when switching */
-.theme-anim,
-.theme-anim *,
-.theme-anim *::before,
-.theme-anim *::after {
-  transition: background-color 0.35s ease, color 0.35s ease, border-color 0.35s ease, fill 0.35s ease !important;
-}
 
 
 /* ───────────────────────── SHARED UI ───────────────────────── */
@@ -261,20 +254,6 @@ html:not([data-theme="dark"]) .section-tint { background: var(--void3); }
 @keyframes caret { 50% { opacity: 0; } }
 .caret { display:inline-block; width:.55ch; height:1.1em; vertical-align:-0.18em; background: var(--phosphor); animation: caret 1s step-end infinite; }
 
-
-/* ───────────────────────── PAINT-DRIP THEME SWITCH ─────────────────────────
-   ThemeToggle animates clip-path on the view-transition snapshots (see
-   components/ThemeToggle.tsx). Going dark, the new theme drips down over the
-   old one; going light, the dark paint climbs back up. */
-html.brush-paint::view-transition-old(root),
-html.brush-paint::view-transition-new(root) {
-  animation: none;
-  mix-blend-mode: normal;
-}
-html.brush-paint::view-transition-old(root) { z-index: 1; }
-html.brush-paint::view-transition-new(root) { z-index: 2; }
-html.brush-paint.to-light::view-transition-old(root) { z-index: 2; }
-html.brush-paint.to-light::view-transition-new(root) { z-index: 1; }
 
 /* custom cursor ring turns into a filled disc over clickable things */
 .cursor-ring { transition: background-color 0.15s ease, border-color 0.15s ease; }
