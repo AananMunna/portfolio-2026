@@ -158,18 +158,14 @@ useEffect(() => {
     const onScroll = () => {
       const y = window.scrollY;
       setScrolled(y > 70);
-      if (isProject) {
-        // case-study pages: only the floating dock, always visible
-        setShowDock(true);
-        lastY.current = y;
-        return;
-      }
+      // Same rule on every route: the dock appears only while the user scrolls
+      // UP (heading back toward the top). Scrolling down / idle keeps it hidden.
       if (y < 90) setShowDock(false);
-      else if (window.innerWidth < 640) setShowDock(true); // phones: always reachable
-      else if (y < lastY.current) setShowDock(true);
-      else if (y > lastY.current + 6) setShowDock(false);
+      else if (y < lastY.current - 1) setShowDock(true);
+      else if (y > lastY.current + 4) setShowDock(false);
       lastY.current = y;
     };
+    lastY.current = window.scrollY;
     onScroll();
     let ticking = false;
     const throttled = () => {
@@ -182,7 +178,7 @@ useEffect(() => {
     };
     window.addEventListener("scroll", throttled, { passive: true });
     return () => window.removeEventListener("scroll", throttled);
-  }, [pathname, isProject]);
+  }, [pathname]);
 
   /* ── active section on home ── */
   useEffect(() => {

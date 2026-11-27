@@ -36,18 +36,17 @@ type Entry = {
   id: string;
   label: string;
   Icon: React.ComponentType<{ className?: string }>;
-  grad: string;
   desktopOnly?: boolean;
 };
 
 const ENTRIES: Entry[] = [
-  { id: "home", label: "Home", Icon: PiHouseFill, grad: "linear-gradient(150deg,#5ac8fa,#007aff)" },
-  { id: "experience", label: "Experience", Icon: PiSuitcaseSimpleFill, grad: "linear-gradient(150deg,#ffb340,#ff7a00)", desktopOnly: true },
-  { id: "skills", label: "Stack", Icon: PiStackFill, grad: "linear-gradient(150deg,#c084fc,#7c3aed)", desktopOnly: true },
-  { id: "work", label: "Projects", Icon: PiSquaresFourFill, grad: "linear-gradient(150deg,#4ade80,#059669)" },
-  { id: "about", label: "About", Icon: PiUserCircleFill, grad: "linear-gradient(150deg,#ff8aa8,#f43f5e)" },
-  { id: "blog", label: "Blog", Icon: PiBookOpenTextFill, grad: "linear-gradient(150deg,#fde047,#f59e0b)" },
-  { id: "contact", label: "Contact", Icon: PiPaperPlaneTiltFill, grad: "linear-gradient(150deg,#67e8f9,#0891b2)" },
+  { id: "home", label: "Home", Icon: PiHouseFill },
+  { id: "experience", label: "Experience", Icon: PiSuitcaseSimpleFill, desktopOnly: true },
+  { id: "skills", label: "Stack", Icon: PiStackFill, desktopOnly: true },
+  { id: "work", label: "Projects", Icon: PiSquaresFourFill },
+  { id: "about", label: "About", Icon: PiUserCircleFill },
+  { id: "blog", label: "Blog", Icon: PiBookOpenTextFill },
+  { id: "contact", label: "Contact", Icon: PiPaperPlaneTiltFill },
 ];
 
 const TILE =
@@ -63,7 +62,6 @@ const haptic = () => {
 function Tile({
   mouseX,
   label,
-  grad,
   active,
   onPress,
   desktopOnly,
@@ -71,7 +69,6 @@ function Tile({
 }: {
   mouseX: MotionValue<number>;
   label: string;
-  grad: string;
   active?: boolean;
   onPress: (el: Element) => void;
   desktopOnly?: boolean;
@@ -101,26 +98,24 @@ function Tile({
         }}
         whileTap={{ scale: 0.84 }}
         transition={{ type: "spring", stiffness: 600, damping: 26 }}
-        className={`hover-target relative grid place-items-center overflow-hidden rounded-[23%] text-white outline-none focus-visible:ring-2 focus-visible:ring-accent ${TILE}`}
+        className={`hover-target relative grid place-items-center overflow-hidden rounded-[24%] outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-accent ${
+          active ? "text-accent" : "text-fg/70"
+        } ${TILE}`}
         style={{
-          background: grad,
-          boxShadow:
-            "0 5px 12px -3px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.4), inset 0 -1px 0 rgba(0,0,0,.14)",
+          background: active ? "var(--phosphorA)" : "color-mix(in srgb, var(--text) 5%, transparent)",
+          boxShadow: active
+            ? "inset 0 0 0 1px color-mix(in srgb, var(--phosphor) 45%, transparent)"
+            : "inset 0 0 0 1px var(--line)",
         }}
       >
-        <span
-          aria-hidden
-          className="pointer-events-none absolute inset-0"
-          style={{ background: "linear-gradient(to bottom, rgba(255,255,255,.26), rgba(255,255,255,0) 55%)" }}
-        />
-        <span className="relative drop-shadow-[0_1px_1px_rgba(0,0,0,.25)]">{children}</span>
+        <span className="relative">{children}</span>
       </motion.button>
 
       {active && (
         <motion.span
           layoutId="dock-dot"
           aria-hidden
-          className="absolute -bottom-[9px] left-1/2 h-[5px] w-[5px] -translate-x-1/2 rounded-full bg-fg/80"
+          className="absolute -bottom-[9px] left-1/2 h-[5px] w-[5px] -translate-x-1/2 rounded-full bg-accent"
           transition={{ type: "spring", stiffness: 600, damping: 32 }}
         />
       )}
@@ -171,7 +166,6 @@ export default function Dock({
                 key={e.id}
                 mouseX={mouseX}
                 label={e.label}
-                grad={e.grad}
                 active={active === e.id}
                 desktopOnly={e.desktopOnly}
                 onPress={() => onGo(e.id)}
@@ -185,7 +179,6 @@ export default function Dock({
             <Tile
               mouseX={mouseX}
               label="Theme"
-              grad="linear-gradient(150deg,#64748b,#1e293b)"
               onPress={toggleTheme}
             >
               <PiSunFill className={`theme-sun ${ICON}`} />
@@ -195,7 +188,6 @@ export default function Dock({
             <Tile
               mouseX={mouseX}
               label="Menu"
-              grad="linear-gradient(150deg,#9ca3af,#4b5563)"
               onPress={onMenu}
               desktopOnly
             >
