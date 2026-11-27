@@ -141,7 +141,19 @@ function runReveal(
     "::view-transition-new(root){clip-path:inset(0 0 100% 0);}"; // hidden until the animation starts
   document.head.appendChild(style);
 
+  // A fill:forwards animation on a view-transition pseudo-element outlives its
+  // transition and gets re-applied to the NEXT one (this is what made the 2nd
+  // toggle stutter). Clear any leftovers before starting.
+  for (const a of document.getAnimations()) {
+    const pe = (a.effect as KeyframeEffect | null)?.pseudoElement;
+    if (pe && pe.startsWith("::view-transition")) a.cancel();
+  }
+
   let anim: Animation | null = null;
+  const guard = window.setTimeout(() => {
+    busy = false; // never leave the toggle dead if a transition stalls
+  }, MS + 2500);
+
   const vt = (document as any).startViewTransition(swap);
 
   vt.ready
@@ -175,8 +187,7 @@ function runReveal(
     .catch(() => {});
 
   vt.finished.finally(() => {
-    // fill:"forwards" keeps the animation alive after the transition ends, and it
-    // gets applied again on the next toggle (the stutter). Remove it.
+    window.clearTimeout(guard);
     anim?.cancel();
     style.remove();
     busy = false;
@@ -198,35 +209,37 @@ function drawCanvas(
   const { xs, ys } = f;
   const last = xs.length - 1;
 
-  const trace = (p: Path2D, moveFirst: boolean) => {
-    if (moveFirst) p.moveTo(xs[0], ys[0]);
-    p.lineTo((xs[0] + xs[1]) / 2, (ys[0] + ys[1]) / 2);
+  // draws directly on ctx (no Path2D objects => nothing for the GC per frame)
+  const trace = (moveFirst: boolean) => {
+    if (moveFirst) ctx.moveTo(xs[0], ys[0]);
+    ctx.lineTo((xs[0] + xs[1]) / 2, (ys[0] + ys[1]) / 2);
     for (let i = 1; i < last; i++)
-      p.quadraticCurveTo(
+      ctx.quadraticCurveTo(
         xs[i],
         ys[i],
         (xs[i] + xs[i + 1]) / 2,
         (ys[i] + ys[i + 1]) / 2,
       );
-    p.lineTo(xs[last], ys[last]);
+    ctx.lineTo(xs[last], ys[last]);
   };
 
   ctx.clearRect(0, 0, W, H);
-  const edge = new Path2D();
-  trace(edge, true);
-  const fill = new Path2D();
-  fill.moveTo(0, -4);
-  fill.lineTo(xs[0], ys[0]);
-  trace(fill, false);
-  fill.lineTo(W, -4);
-  fill.closePath();
 
+  ctx.beginPath();
+  ctx.moveTo(0, -4);
+  ctx.lineTo(xs[0], ys[0]);
+  trace(false);
+  ctx.lineTo(W, -4);
+  ctx.closePath();
   ctx.fillStyle = PAINT;
-  ctx.fill(fill);
+  ctx.fill();
+
+  ctx.beginPath();
+  trace(true);
   ctx.strokeStyle = SHEEN;
   ctx.lineWidth = 2;
   ctx.lineJoin = "round";
-  ctx.stroke(edge);
+  ctx.stroke();
 
   for (const s of f.streams) {
     const y = ys[s.i];
@@ -272,19 +285,36 @@ function runCanvas(toDark: boolean, swap: () => void) {
   ctx.scale(s, s);
 
   const field = buildField(W, H, clamp(Math.round(W / 8), 60, 180));
+  const root = document.documentElement;
+  let swapped = false;
+  const doSwap = () => {
+    if (swapped) return;
+    swapped = true;
+    root.classList.add("theme-switching"); // no colour transitions under the paint
+    swap();
+  };
+  let guard = 0;
   const cleanup = () => {
+    window.clearTimeout(guard);
+    doSwap(); // theme always ends up applied, even if frames were dropped
+    root.classList.remove("theme-switching");
     canvas.remove();
     busy = false;
   };
+  guard = window.setTimeout(cleanup, MS + 2500);
 
-  let t0 = 0;
+  // Advance by at most ~2 frames per tick: when the phone is busy repainting the
+  // page, the paint slows down for a moment instead of freezing and then jumping.
+  let prev = 0;
+  let elapsed = 0;
   const loop = (now: number) => {
-    if (!t0) t0 = now;
-    const t = (now - t0) / MS;
+    if (prev) elapsed += Math.min(now - prev, 34);
+    prev = now;
+    const t = elapsed / MS;
     if (t >= 1) {
       if (toDark) {
         drawCanvas(ctx, field, W, H, 1);
-        swap();
+        doSwap();
         requestAnimationFrame(() => {
           canvas.style.opacity = "0";
           window.setTimeout(cleanup, 220);
@@ -305,7 +335,7 @@ function runCanvas(toDark: boolean, swap: () => void) {
     // start fully covered, flip to light under the paint, then peel upward
     drawCanvas(ctx, field, W, H, 1);
     document.body.appendChild(canvas);
-    swap();
+    doSwap();
     requestAnimationFrame(() => requestAnimationFrame(loop));
   }
 }
@@ -320,6 +350,9 @@ function pickTier(): Tier {
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches)
     return "instant";
   const nav = navigator as any;
+  // Phones/tablets: a View Transition snapshots + masks the whole live page
+  // every frame, which is what hangs mobile GPUs. The canvas paint is cheap.
+  if (window.matchMedia("(pointer: coarse)").matches) return "canvas";
   const hasVT = typeof (document as any).startViewTransition === "function";
   if (!hasVT) return "canvas";
   const weak =
