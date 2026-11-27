@@ -1,8 +1,9 @@
-import type {Metadata} from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Inter, JetBrains_Mono } from 'next/font/google';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
-import SmoothScroll from '@/components/SmoothScroll';
+import CustomCursor from '@/components/CustomCursor';
+import ClickSound from '@/components/ClickSound';
 import './globals.css';
 
 const inter = Inter({
@@ -15,6 +16,7 @@ const jetbrains = JetBrains_Mono({
   subsets: ['latin'],
   variable: '--font-jetbrains',
   display: 'swap',
+  preload: false, // only used for small labels, so don't block first paint
 });
 
 export const metadata: Metadata = {
@@ -32,23 +34,32 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({children}: {children: React.ReactNode}) {
+export const viewport: Viewport = {
+  colorScheme: 'light',
+  themeColor: '#fbfbfd',
+};
+
+// Always start in light mode, whatever the device prefers. Dark only if the
+// visitor switched to it earlier in this browser session.
+const themeScript = `try{if(sessionStorage.getItem("theme")==="dark")document.documentElement.dataset.theme="dark"}catch(e){}`;
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning className={`${inter.variable} ${jetbrains.variable}`}>
+    <html
+      lang="en"
+      data-theme="light"
+      suppressHydrationWarning
+      className={`${inter.variable} ${jetbrains.variable}`}
+    >
       <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `try{var t=localStorage.getItem("theme");document.documentElement.dataset.theme=t==="light"?"light":"dark"}catch(e){document.documentElement.dataset.theme="dark"}`,
-          }}
-        />
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body suppressHydrationWarning>
-        <SmoothScroll>
-          <div className="noise-bg"></div>
-          <Navbar />
-          {children}
-          <Footer />
-        </SmoothScroll>
+        <CustomCursor />
+        <ClickSound />
+        <Navbar />
+        {children}
+        <Footer />
       </body>
     </html>
   );

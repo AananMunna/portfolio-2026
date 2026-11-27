@@ -1,5 +1,4 @@
 @import "tailwindcss";
-@import "tw-animate-css";
 
 :root {
   /* ── BACKGROUNDS ── */
@@ -55,8 +54,11 @@
 @layer base {
   body {
     @apply bg-bg text-fg font-sans antialiased selection:bg-accent selection:text-bg;
-    cursor: none; /* Hide default cursor for custom cursor */
   }
+  /* The custom cursor only exists on fine pointers; it adds this class. */
+  html.cursor-none, html.cursor-none * { cursor: none !important; }
+  html { -webkit-tap-highlight-color: transparent; }
+  a, button, [role="button"] { touch-action: manipulation; }
   
   /* Hide scrollbar for cleaner look */
   ::-webkit-scrollbar {
@@ -78,18 +80,6 @@
   transition: all 0.3s ease;
 }
 
-.noise-bg {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  pointer-events: none;
-  z-index: 50;
-  opacity: 0.04;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
-}
-
 @keyframes blink {
   50% { opacity: 0; }
 }
@@ -103,20 +93,23 @@
 }
 
 /* ───────────────────────── THEME ─────────────────────────
-   Dark is the default (the variables in :root above).
-   Light mode is set with <html data-theme="light">.
+   Light is the default; the site always opens in light mode.
+   Dark mode is opt-in with <html data-theme="dark">. The dark palette is the
+   :root block above, so the light palette below is applied whenever the theme
+   is NOT dark.
    Tailwind's `white` is remapped to ink in light mode, so every existing
    border-white/10, text-white/50, bg-white/[0.03] flips automatically.
    Anything that must stay truly white (cursor, dock) gets .keep-white. */
 :root {
   --glow: rgba(0, 255, 136, 0.2);
   --vignette: rgba(3, 5, 12, 0.55);
-  color-scheme: dark;
+  color-scheme: light;
 }
+:root[data-theme="dark"] { color-scheme: dark; }
 
 /* Light mode: "product page" palette. Cool white canvas, near-black ink,
    hairline borders, soft layered shadows. Emerald stays as the one accent. */
-:root[data-theme="light"] {
+:root:not([data-theme="dark"]) {
   color-scheme: light;
 
   --void:      #fbfbfd;   /* canvas */
@@ -156,7 +149,7 @@
   --term-bg:     #0f1115;
 }
 
-:root:not([data-theme="light"]) {
+:root[data-theme="dark"] {
   --line:        rgba(255, 255, 255, 0.09);
   --line-strong: rgba(255, 255, 255, 0.18);
   --card:        rgba(255, 255, 255, 0.03);
@@ -174,27 +167,22 @@
   --color-white: #ffffff;
 }
 
-[data-theme="light"] .noise-bg {
-  opacity: 0.025;
-}
-
 /* Soft cards in light mode */
-[data-theme="light"] .shadow-2xl {
+html:not([data-theme="dark"]) .shadow-2xl {
   --tw-shadow-color: rgba(16, 24, 40, 0.16);
 }
 
-/* theme toggle icons: show the mode you will switch TO */
-.theme-moon { display: none; }
-[data-theme="light"] .theme-sun { display: none; }
-[data-theme="light"] .theme-moon { display: block; }
+/* set by ThemeToggle while the theme swaps underneath the paint */
+.theme-switching *,
+.theme-switching *::before,
+.theme-switching *::after { transition: none !important; }
 
-/* brief fade when switching */
-.theme-anim,
-.theme-anim *,
-.theme-anim *::before,
-.theme-anim *::after {
-  transition: background-color 0.35s ease, color 0.35s ease, border-color 0.35s ease, fill 0.35s ease !important;
-}
+/* theme toggle icons: show the mode you will switch TO */
+.theme-sun { display: none; }
+.theme-moon { display: block; }
+[data-theme="dark"] .theme-sun { display: block; }
+[data-theme="dark"] .theme-moon { display: none; }
+
 
 
 /* ───────────────────────── SHARED UI ───────────────────────── */
@@ -256,18 +244,32 @@
 
 /* Light mode: calm ambient gradient behind the hero */
 .hero-ambient { display: none; }
-[data-theme="light"] .hero-ambient {
+html:not([data-theme="dark"]) .hero-ambient {
   display: block;
   background:
     radial-gradient(40% 50% at 18% 20%, rgba(4,120,87,.10), transparent 70%),
     radial-gradient(38% 46% at 82% 14%, rgba(3,105,161,.09), transparent 70%),
     radial-gradient(45% 55% at 70% 88%, rgba(180,83,9,.07), transparent 70%);
 }
-[data-theme="light"] .noise-bg { opacity: 0.015; }
-[data-theme="light"] ::selection { background: var(--phosphor); color: #fff; }
-[data-theme="light"] .section-tint { background: var(--void3); }
+html:not([data-theme="dark"]) ::selection { background: var(--phosphor); color: #fff; }
+html:not([data-theme="dark"]) .section-tint { background: var(--void3); }
 .section-tint { background: transparent; }
 
 /* Terminal caret */
 @keyframes caret { 50% { opacity: 0; } }
 .caret { display:inline-block; width:.55ch; height:1.1em; vertical-align:-0.18em; background: var(--phosphor); animation: caret 1s step-end infinite; }
+
+
+/* custom cursor ring turns into a filled disc over clickable things */
+.cursor-ring { transition: background-color 0.15s ease, border-color 0.15s ease; }
+.cursor-ring[data-hover="1"] { background: rgba(255, 255, 255, 0.95); border-color: transparent; }
+
+/* iOS-style frosted dock, tinted with the site's own surface colours */
+.dock-glass {
+  background: var(--dock-bg);
+  -webkit-backdrop-filter: blur(22px) saturate(1.6);
+  backdrop-filter: blur(22px) saturate(1.6);
+  box-shadow:
+    0 14px 34px -12px rgba(0, 0, 0, 0.35),
+    0 0 0 1px var(--line);
+}

@@ -10,18 +10,12 @@ import {
   useSpring,
   useTransform,
 } from 'motion/react';
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-  type ReactNode,
-  type RefObject,
-} from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { ArrowLeft, ArrowRight, ArrowUpRight, Github, X } from 'lucide-react';
-import { projects, type Project } from './Projectsdata';
+import { projects, projectSlug, type Project } from './Projectsdata';
 
 /* -------------------------------------------------------------------------- */
 /*  Helpers                                                                   */
@@ -75,83 +69,8 @@ function groupStack(tags: string[]) {
 const tagLabel = (t: string) => STACK[t.toLowerCase()]?.label ?? t;
 
 /* -------------------------------------------------------------------------- */
-/*  Smooth scroll for the overlay's own scroll container                      */
-/*                                                                            */
-/*  The overlay scrolls inside its own element (not the window), and it is    */
-/*  marked data-lenis-prevent so the site-wide Lenis ignores it — that's why  */
-/*  it used to scroll natively. This hook gives it the same eased feel.       */
-/* -------------------------------------------------------------------------- */
-
-function useSmoothScroll(ref: RefObject<HTMLElement | null>, enabled: boolean) {
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || !enabled) return;
-
-    let target = el.scrollTop;
-    let current = el.scrollTop;
-    let raf = 0;
-    let running = false;
-    let last = 0;
-
-    const max = () => Math.max(0, el.scrollHeight - el.clientHeight);
-
-    const tick = (now: number) => {
-      const dt = Math.min(now - last, 64);
-      last = now;
-      // frame-rate independent easing (~90ms time constant)
-      current += (target - current) * (1 - Math.exp(-dt / 90));
-      if (Math.abs(target - current) < 0.4) {
-        current = target;
-        running = false;
-      }
-      el.scrollTop = current;
-      if (running) raf = requestAnimationFrame(tick);
-    };
-
-    const onWheel = (e: WheelEvent) => {
-      if (e.ctrlKey) return; // pinch-zoom
-      e.preventDefault();
-
-      let dy = e.deltaY;
-      if (e.deltaMode === 1) dy *= 32;
-      else if (e.deltaMode === 2) dy *= el.clientHeight;
-
-      if (!running) {
-        current = el.scrollTop;
-        target = el.scrollTop;
-      }
-      target = Math.min(max(), Math.max(0, target + dy));
-
-      if (!running) {
-        running = true;
-        last = performance.now();
-        raf = requestAnimationFrame(tick);
-      }
-    };
-
-    // keep in sync when scrolled by keyboard, scrollbar drag, scrollTo(), etc.
-    const onScroll = () => {
-      if (!running) {
-        target = el.scrollTop;
-        current = el.scrollTop;
-      }
-    };
-
-    el.addEventListener('wheel', onWheel, { passive: false });
-    el.addEventListener('scroll', onScroll, { passive: true });
-    return () => {
-      cancelAnimationFrame(raf);
-      el.removeEventListener('wheel', onWheel);
-      el.removeEventListener('scroll', onScroll);
-    };
-  }, [ref, enabled]);
-}
-
-/* -------------------------------------------------------------------------- */
 /*  Reveal primitives                                                         */
 /* -------------------------------------------------------------------------- */
-
-const RootCtx = createContext<RefObject<HTMLElement | null> | null>(null);
 
 function Reveal({
   children,
@@ -162,14 +81,13 @@ function Reveal({
   delay?: number;
   className?: string;
 }) {
-  const root = useContext(RootCtx);
   const reduced = useReducedMotion();
   return (
     <motion.div
       className={className}
       initial={{ opacity: 0, y: reduced ? 0 : 24 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ root: root ?? undefined, once: true, margin: '0px 0px -8% 0px' }}
+      viewport={{ once: true, margin: '0px 0px -8% 0px' }}
       transition={{ duration: 0.8, delay, ease: EASE }}
     >
       {children}
@@ -187,10 +105,8 @@ function ClipReveal({
   className?: string;
   delay?: number;
 }) {
-  const root = useContext(RootCtx);
   const reduced = useReducedMotion();
   const viewport = {
-    root: root ?? undefined,
     once: true,
     margin: '0px 0px -10% 0px',
   };
@@ -218,10 +134,8 @@ function ClipReveal({
 
 function CountUp({ value, suffix = '' }: { value: number; suffix?: string }) {
   const ref = useRef<HTMLSpanElement>(null);
-  const root = useContext(RootCtx);
   const reduced = useReducedMotion();
   const inView = useInView(ref, {
-    root: root ?? undefined,
     once: true,
     margin: '0px 0px -10% 0px',
   });
@@ -278,11 +192,14 @@ interface Props {
   total: number;
   prev: Project | null;
   next: Project | null;
-  onClose: () => void;
-  onNavigate: (id: number) => void;
-  /** Optional: render your site CTA / footer at the end of the page. */
-  footer?: ReactNode;
 }
+
+const hrefOf = (p: Project) => `/projects/${projectSlug(p)}`;
+const backToWork = () => {
+  try {
+    sessionStorage.setItem('nav-target', '#work');
+  } catch {}
+};
 
 export default function ProjectDetail({
   project,
@@ -290,19 +207,13 @@ export default function ProjectDetail({
   total,
   prev,
   next,
-  onClose,
-  onNavigate,
-  footer,
 }: Props) {
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const closeRef = useRef<HTMLButtonElement>(null);
+  const router = useRouter();
   const heroRef = useRef<HTMLDivElement>(null);
   const reduced = useReducedMotion();
   const [stuck, setStuck] = useState(false);
 
-  useSmoothScroll(scrollRef, !reduced);
-
-  const { scrollY, scrollYProgress } = useScroll({ container: scrollRef });
+  const { scrollY, scrollYProgress } = useScroll();
   const progress = useSpring(scrollYProgress, {
     stiffness: 180,
     damping: 28,
@@ -311,31 +222,20 @@ export default function ProjectDetail({
   useMotionValueEvent(scrollY, 'change', (v) => setStuck(v > 280));
 
   const { scrollYProgress: heroProgress } = useScroll({
-    container: scrollRef,
     target: heroRef,
     offset: ['start start', 'end start'],
   });
   const heroY = useTransform(heroProgress, [0, 1], ['0%', '10%']);
 
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: 0 });
-  }, [project.id]);
-
-  useEffect(() => {
-    const prevEl = document.activeElement as HTMLElement | null;
-    closeRef.current?.focus({ preventScroll: true });
-    return () => prevEl?.focus?.({ preventScroll: true });
-  }, []);
-
-  useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-      else if (e.key === 'ArrowRight' && next) onNavigate(next.id);
-      else if (e.key === 'ArrowLeft' && prev) onNavigate(prev.id);
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key === 'ArrowRight' && next) router.push(hrefOf(next));
+      else if (e.key === 'ArrowLeft' && prev) router.push(hrefOf(prev));
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose, onNavigate, next, prev]);
+  }, [router, next, prev]);
 
   const extra = project as Project & Extra;
   const stack = groupStack(project.tags);
@@ -363,35 +263,22 @@ export default function ProjectDetail({
   const hasGallery = !!extra.gallery?.length;
 
   return (
-    <motion.div
-      role="dialog"
-      aria-modal="true"
-      aria-label={`${project.title} case study`}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.35, ease: EASE }}
-      className="fixed inset-0 z-[90] bg-bg text-fg"
-    >
+    <div className="relative bg-bg pb-24 text-fg">
       {/* Reading progress */}
       <motion.div
         aria-hidden
         style={{ scaleX: progress }}
-        className="absolute inset-x-0 top-0 z-40 h-[2px] origin-left bg-accent"
+        className="fixed inset-x-0 top-0 z-[60] h-[2px] origin-left bg-accent"
       />
 
-      <div
-        ref={scrollRef}
-        data-lenis-prevent="true"
-        className="absolute inset-0 overflow-y-auto overscroll-contain"
-      >
-        <RootCtx.Provider value={scrollRef}>
+      <div>
+        <>
           {/* ------------------------------ Header ------------------------------ */}
           <header className="sticky top-0 z-30 border-b border-fg/10 bg-bg/75 backdrop-blur-xl">
             <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-5 sm:px-8">
-              <button
-                type="button"
-                onClick={onClose}
+              <Link
+                href="/#work"
+                onClick={backToWork}
                 className="hover-target group flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-muted transition hover:text-fg"
               >
                 <ArrowLeft
@@ -399,7 +286,7 @@ export default function ProjectDetail({
                   className="transition group-hover:-translate-x-0.5"
                 />
                 <span className="hidden sm:inline">All works</span>
-              </button>
+              </Link>
 
               <div
                 aria-hidden={!stuck}
@@ -416,33 +303,40 @@ export default function ProjectDetail({
               </div>
 
               <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  disabled={!prev}
-                  onClick={() => prev && onNavigate(prev.id)}
-                  className="hover-target flex h-9 w-9 items-center justify-center rounded-full text-fg/60 transition hover:bg-fg/5 hover:text-fg disabled:opacity-25"
-                  aria-label="Previous project"
-                >
-                  <ArrowLeft size={15} />
-                </button>
-                <button
-                  type="button"
-                  disabled={!next}
-                  onClick={() => next && onNavigate(next.id)}
-                  className="hover-target flex h-9 w-9 items-center justify-center rounded-full text-fg/60 transition hover:bg-fg/5 hover:text-fg disabled:opacity-25"
-                  aria-label="Next project"
-                >
-                  <ArrowRight size={15} />
-                </button>
-                <button
-                  ref={closeRef}
-                  type="button"
-                  onClick={onClose}
+                {prev ? (
+                  <Link
+                    href={hrefOf(prev)}
+                    className="hover-target flex h-9 w-9 items-center justify-center rounded-full text-fg/60 transition hover:bg-fg/5 hover:text-fg"
+                    aria-label="Previous project"
+                  >
+                    <ArrowLeft size={15} />
+                  </Link>
+                ) : (
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full text-fg/25" aria-hidden>
+                    <ArrowLeft size={15} />
+                  </span>
+                )}
+                {next ? (
+                  <Link
+                    href={hrefOf(next)}
+                    className="hover-target flex h-9 w-9 items-center justify-center rounded-full text-fg/60 transition hover:bg-fg/5 hover:text-fg"
+                    aria-label="Next project"
+                  >
+                    <ArrowRight size={15} />
+                  </Link>
+                ) : (
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full text-fg/25" aria-hidden>
+                    <ArrowRight size={15} />
+                  </span>
+                )}
+                <Link
+                  href="/#work"
+                  onClick={backToWork}
                   className="hover-target group ml-1 flex h-9 w-9 items-center justify-center rounded-full bg-fg/5 text-fg transition hover:bg-fg hover:text-bg"
-                  aria-label="Close"
+                  aria-label="Back to all works"
                 >
                   <X size={15} className="transition group-hover:rotate-90" />
-                </button>
+                </Link>
               </div>
             </div>
           </header>
@@ -459,13 +353,13 @@ export default function ProjectDetail({
                 aria-label="Breadcrumb"
                 className="mb-8 flex items-center gap-2 text-xs text-muted sm:mb-12"
               >
-                <button
-                  type="button"
-                  onClick={onClose}
+                <Link
+                  href="/#work"
+                  onClick={backToWork}
                   className="hover-target transition hover:text-fg"
                 >
                   Case Studies
-                </button>
+                </Link>
                 <span aria-hidden>/</span>
                 <span className="truncate rounded-sm bg-fg/5 px-2 py-1 text-fg">
                   {project.title}
@@ -773,9 +667,8 @@ export default function ProjectDetail({
                         Related Projects
                       </h2>
                       {next && (
-                        <button
-                          type="button"
-                          onClick={() => onNavigate(next.id)}
+                        <Link
+                          href={hrefOf(next)}
                           className="hover-target group hidden items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-muted transition hover:text-fg sm:flex"
                         >
                           Next project
@@ -783,17 +676,16 @@ export default function ProjectDetail({
                             size={14}
                             className="transition group-hover:translate-x-0.5"
                           />
-                        </button>
+                        </Link>
                       )}
                     </div>
                   </Reveal>
 
                   <div className="grid gap-x-8 gap-y-12 sm:grid-cols-2 lg:gap-x-12">
                     {related.map((p, i) => (
-                      <button
+                      <Link
                         key={p.id}
-                        type="button"
-                        onClick={() => onNavigate(p.id)}
+                        href={hrefOf(p)}
                         aria-label={`Open ${p.title} case study`}
                         className="hover-target group block text-left"
                       >
@@ -825,17 +717,16 @@ export default function ProjectDetail({
                             ))}
                           </ul>
                         </div>
-                      </button>
+                      </Link>
                     ))}
                   </div>
                 </div>
               </section>
             )}
 
-            {footer}
           </motion.main>
-        </RootCtx.Provider>
+        </>
       </div>
-    </motion.div>
+    </div>
   );
 }

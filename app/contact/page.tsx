@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import CustomCursor from "@/components/CustomCursor";
 import ContactForm from "@/components/ContactForm";
 import { Mail, MapPin, Clock } from "lucide-react";
 
@@ -13,7 +12,6 @@ const EMAIL = "aananmunna420@gmail.com";
 export default function ContactPage() {
   return (
     <main className="relative bg-bg">
-      <CustomCursor />
       <div className="hero-ambient pointer-events-none absolute inset-x-0 top-0 h-[70vh]" aria-hidden />
 
       <div className="relative mx-auto max-w-7xl px-5 pb-24 pt-32 sm:px-8 sm:pb-32 sm:pt-40">

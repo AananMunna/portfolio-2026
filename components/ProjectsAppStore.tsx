@@ -2,11 +2,8 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import Image from 'next/image';
-import { projects } from './Projectsdata';
-
-interface Props {
-  onOpen: (id: number) => void;
-}
+import Link from 'next/link';
+import { projects, projectSlug } from './Projectsdata';
 
 /**
  * Staggered 3-step rhythm (repeats):
@@ -27,6 +24,13 @@ const getCardLayout = (index: number) => {
 
 const workLabel = (type: 'company' | 'personal') =>
   type === 'company' ? 'Company work' : 'Personal project';
+
+/** So the browser Back button returns to this card, not the top of the page. */
+const rememberSpot = () => {
+  try {
+    sessionStorage.setItem('nav-target', '#work');
+  } catch {}
+};
 
 const getImageRatio = (index: number) =>
   index % 3 === 1 ? 'aspect-[16/10]' : 'aspect-[7/5]';
@@ -92,7 +96,7 @@ function EyeReveal({
   );
 }
 
-export default function ProjectsAppStore({ onOpen }: Props) {
+export default function ProjectsAppStore() {
   if (!projects.length) return null;
 
   return (
@@ -146,12 +150,12 @@ export default function ProjectsAppStore({ onOpen }: Props) {
             const isNarrow = index % 3 === 1;
 
             return (
-              <button
+              <Link
                 key={project.id}
-                type="button"
-                onClick={() => onOpen(project.id)}
+                href={`/projects/${projectSlug(project)}`}
+                onClick={rememberSpot}
                 aria-label={`Explore ${project.title} case study`}
-                className={`group block min-w-0 text-left outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-4 ${getCardLayout(
+                className={`group block min-w-0 text-left hover-target outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-4 ${getCardLayout(
                   index
                 )}`}
               >
@@ -213,7 +217,7 @@ export default function ProjectsAppStore({ onOpen }: Props) {
                     ))}
                   </ul>
                 </div>
-              </button>
+              </Link>
             );
           })}
         </div>

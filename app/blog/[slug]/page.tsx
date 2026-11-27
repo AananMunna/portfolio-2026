@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import CodeBlock from "@/components/blog/CodeBlock";
 import Toc from "@/components/blog/Toc";
+import PostLink from "@/components/blog/PostLink";
 import { getAdjacent, getPost, posts, readingTime, slugify } from "@/lib/blogData";
 
 type Props = { params: Promise<{ slug: string }> };
@@ -41,16 +42,16 @@ export default async function BlogPost({ params }: Props) {
           <ul className="space-y-1">
             {posts.map((p) => (
               <li key={p.slug}>
-                <Link
+                <PostLink
                   href={`/blog/${p.slug}`}
                   className={`hover-target block rounded-md px-3 py-2 text-sm leading-snug transition-colors ${
                     p.slug === slug
                       ? "bg-accent/10 text-accent"
-                      : "text-fg/60 hover:bg-white/5 hover:text-fg"
+                      : "text-fg/60 hover:bg-fg/5 hover:text-fg"
                   }`}
                 >
                   {p.title}
-                </Link>
+                </PostLink>
               </li>
             ))}
           </ul>

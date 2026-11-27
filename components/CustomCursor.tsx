@@ -1,183 +1,93 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
-import {
-  motion,
-  useMotionValue,
-  useSpring,
-  AnimatePresence,
-} from 'motion/react';
+import { useEffect, useRef } from 'react';
 
-interface Ripple {
-  id: number;
-  x: number;
-  y: number;
-}
-
+/**
+ * Desktop-only cursor (dot + trailing ring). It never touches React state: the
+ * elements are moved with transforms from one rAF loop that sleeps when the
+ * mouse is still. Touch devices and reduced-motion users get nothing at all.
+ */
 export default function CustomCursor() {
-  const [isHovering, setIsHovering] = useState(false);
-  const [isClicking, setIsClicking] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-  const [ripples, setRipples] = useState<Ripple[]>([]);
-  const [cursorText, setCursorText] = useState<string | null>(null);
-
-  // Motion values (no re-render on every mouse move)
-  const mouseX = useMotionValue(-100);
-  const mouseY = useMotionValue(-100);
-
-  // Ultra responsive springs
-  const springConfig = { damping: 28, stiffness: 1200, mass: 0.15 };
-  const ringSpring = { damping: 22, stiffness: 380, mass: 0.4 };
-
-  const dotX = useSpring(mouseX, springConfig);
-  const dotY = useSpring(mouseY, springConfig);
-  const ringX = useSpring(mouseX, ringSpring);
-  const ringY = useSpring(mouseY, ringSpring);
-
-  // Detect mobile
-  useEffect(() => {
-    const check = () => setIsMobile(window.matchMedia('(pointer: coarse)').matches);
-    check();
-    window.addEventListener('resize', check);
-    return () => window.removeEventListener('resize', check);
-  }, []);
+  const dot = useRef<HTMLDivElement>(null);
+  const ring = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (isMobile) {
-      const handleTap = (e: TouchEvent) => {
-        const touch = e.touches[0] || e.changedTouches[0];
-        if (!touch) return;
+    const fine = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const d = dot.current;
+    const r = ring.current;
+    if (!fine || reduce || !d || !r) return;
 
-        const id = Date.now();
-        setRipples((prev) => [...prev, { id, x: touch.clientX, y: touch.clientY }]);
-        setTimeout(() => {
-          setRipples((prev) => prev.filter((r) => r.id !== id));
-        }, 650);
-      };
-
-      window.addEventListener('touchstart', handleTap, { passive: true });
-      return () => window.removeEventListener('touchstart', handleTap);
-    }
-
-    // Desktop logic
-    const move = (e: MouseEvent) => {
-      mouseX.set(e.clientX);
-      mouseY.set(e.clientY);
-    };
-
-    const down = () => setIsClicking(true);
-    const up = () => setIsClicking(false);
-
-    const over = (e: MouseEvent) => {
-      const el = e.target as HTMLElement;
-
-      const interactive =
-        el.closest('a') ||
-        el.closest('button') ||
-        el.closest('[role="button"]') ||
-        el.closest('.hover-target') ||
-        el.tagName === 'A' ||
-        el.tagName === 'BUTTON';
-
-      setIsHovering(!!interactive);
-
-      // Optional text label (add data-cursor="View" on any element)
-      const label = el.closest('[data-cursor]') as HTMLElement | null;
-      setCursorText(label?.dataset.cursor || null);
-    };
-
-    window.addEventListener('mousemove', move, { passive: true });
-    window.addEventListener('mousedown', down);
-    window.addEventListener('mouseup', up);
-    window.addEventListener('mouseover', over, { passive: true });
-
-    // Hide default cursor
     document.documentElement.classList.add('cursor-none');
 
-    return () => {
-      window.removeEventListener('mousemove', move);
-      window.removeEventListener('mousedown', down);
-      window.removeEventListener('mouseup', up);
-      window.removeEventListener('mouseover', over);
-      document.documentElement.classList.remove('cursor-none');
-    };
-  }, [isMobile, mouseX, mouseY]);
+    let x = -100, y = -100, rx = -100, ry = -100;
+    let raf = 0;
+    let hover = false;
+    let down = false;
 
-  // Mobile version
-  if (isMobile) {
-    return (
-      <AnimatePresence>
-        {ripples.map((r) => (
-          <motion.div
-            key={r.id}
-            initial={{ opacity: 0.55, scale: 0, x: r.x - 18, y: r.y - 18 }}
-            animate={{ opacity: 0, scale: 1.8 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-            className="fixed top-0 left-0 w-9 h-9 rounded-full border border-accent/80 pointer-events-none z-[9999]"
-          />
-        ))}
-      </AnimatePresence>
-    );
-  }
+    const paint = () => {
+      rx += (x - rx) * 0.22;
+      ry += (y - ry) * 0.22;
+      d.style.transform = `translate3d(${x}px,${y}px,0) translate(-50%,-50%) scale(${hover ? 0 : down ? 0.55 : 1})`;
+      const s = hover ? 1.7 : down ? 0.85 : 1;
+      r.style.transform = `translate3d(${rx}px,${ry}px,0) translate(-50%,-50%) scale(${s})`;
+      raf = Math.abs(x - rx) + Math.abs(y - ry) > 0.3 ? requestAnimationFrame(paint) : 0;
+    };
+    const kick = () => {
+      if (!raf) raf = requestAnimationFrame(paint);
+    };
+
+    const move = (e: PointerEvent) => {
+      if (e.pointerType !== 'mouse') return;
+      x = e.clientX;
+      y = e.clientY;
+      kick();
+    };
+    const over = (e: PointerEvent) => {
+      const el = e.target as Element | null;
+      const next = !!el?.closest?.('a, button, [role="button"], .hover-target');
+      if (next !== hover) {
+        hover = next;
+        r.dataset.hover = next ? '1' : '';
+        kick();
+      }
+    };
+    const setDown = (v: boolean) => () => {
+      down = v;
+      kick();
+    };
+    const downFn = setDown(true);
+    const upFn = setDown(false);
+
+    window.addEventListener('pointermove', move, { passive: true });
+    window.addEventListener('pointerover', over, { passive: true });
+    window.addEventListener('pointerdown', downFn, { passive: true });
+    window.addEventListener('pointerup', upFn, { passive: true });
+
+    return () => {
+      cancelAnimationFrame(raf);
+      document.documentElement.classList.remove('cursor-none');
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerover', over);
+      window.removeEventListener('pointerdown', downFn);
+      window.removeEventListener('pointerup', upFn);
+    };
+  }, []);
 
   return (
     <>
-      {/* Tiny accurate dot */}
-      <motion.div
-        className="fixed top-0 left-0 w-1.5 h-1.5 rounded-full bg-white pointer-events-none z-[9999] mix-blend-difference"
-        style={{
-          x: dotX,
-          y: dotY,
-          translateX: '-50%',
-          translateY: '-50%',
-        }}
-        animate={{
-          scale: isHovering ? 0 : isClicking ? 0.55 : 1,
-          opacity: isHovering ? 0 : 1,
-        }}
-        transition={{ duration: 0.15 }}
+      <div
+        ref={dot}
+        aria-hidden
+        className="pointer-events-none fixed left-0 top-0 z-[9999] h-1.5 w-1.5 rounded-full bg-white mix-blend-difference will-change-transform"
+        style={{ transform: 'translate3d(-100px,-100px,0)' }}
       />
-
-      {/* Outer ring */}
-      <motion.div
-        className="fixed top-0 left-0 pointer-events-none z-[9998] mix-blend-difference flex items-center justify-center rounded-full border"
-        style={{
-          x: ringX,
-          y: ringY,
-          translateX: '-50%',
-          translateY: '-50%',
-          width: 36,
-          height: 36,
-        }}
-        animate={{
-          scale: isHovering ? (cursorText ? 2.4 : 1.7) : isClicking ? 0.85 : 1,
-          backgroundColor: isHovering ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0)',
-          borderColor: isHovering ? 'rgba(255,255,255,0)' : 'rgba(255,255,255,0.45)',
-          borderWidth: isHovering ? 0 : 1.5,
-        }}
-        transition={{
-          type: 'spring',
-          stiffness: 420,
-          damping: 28,
-          mass: 0.35,
-        }}
-      >
-        {/* Optional text inside cursor */}
-        <AnimatePresence>
-          {cursorText && isHovering && (
-            <motion.span
-              initial={{ opacity: 0, scale: 0.6 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.6 }}
-              transition={{ duration: 0.15 }}
-              className="text-[10px] font-medium text-black tracking-wide whitespace-nowrap"
-            >
-              {cursorText}
-            </motion.span>
-          )}
-        </AnimatePresence>
-      </motion.div>
+      <div
+        ref={ring}
+        aria-hidden
+        className="cursor-ring pointer-events-none fixed left-0 top-0 z-[9998] h-9 w-9 rounded-full border-[1.5px] border-white/45 mix-blend-difference will-change-transform"
+        style={{ transform: 'translate3d(-100px,-100px,0)' }}
+      />
     </>
   );
 }
