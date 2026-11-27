@@ -192,7 +192,7 @@ export const projects: Project[] = [
     title: 'CourierGo',
     category: 'Logistics Platform',
     workType: 'personal',
-    image: '/images/courier.png',
+    image: '/images/courier.webp',
     year: '2025',
     description:
       'A courier platform I built end to end. Customers book parcels, admins assign riders, riders update delivery status, and anyone can track a parcel with a code. Payments through bKash.',
@@ -700,3 +700,11 @@ export const projects: Project[] = [
   //   ],
   // },
 ];
+
+
+/** URL-friendly id for a project, e.g. "CourierGo" -> "couriergo". */
+export const projectSlug = (p: Pick<Project, 'title'>) =>
+  p.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
+export const getProjectBySlug = (slug: string) =>
+  projects.find((p) => projectSlug(p) === slug);

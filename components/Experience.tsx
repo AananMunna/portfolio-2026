@@ -2,8 +2,9 @@
 
 import { motion } from "motion/react";
 import { ArrowUpRight, MapPin } from "lucide-react";
-import { projects } from "./Projectsdata";
-import { useProjectModal } from "./ProjectModalContext";
+import Link from "next/link";
+import Image from "next/image";
+import { projects, projectSlug } from "./Projectsdata";
 
 const pick = (title: string) => projects.find((p) => p.title === title)!;
 
@@ -15,7 +16,7 @@ const experiences = [
     role: "Front End Developer",
     period: "Jul 2025 – Apr 2026",
     location: "Onsite · Kushtia, Bangladesh",
-    logo: "/images/aljaami.jpg",
+    logo: "/images/aljaami.webp",
     description:
       "Built major parts of Eqrah, a multi-tenant school management SaaS. I owned the frontend for student lists, fee collection, documents, ID cards and every certificate type, and also contributed REST APIs on the Node/Express backend.",
     tech: ["Next.js", "React", "Redux", "TypeScript", "Node.js", "Express", "MongoDB", "Ant Design"],
@@ -38,16 +39,13 @@ const experiences = [
 
 const ease = [0.16, 1, 0.3, 1] as const;
 
-const scrollToWork = (e: React.MouseEvent) => {
-  e.preventDefault();
-  const lenis = (window as any).lenis;
-  if (lenis) lenis.scrollTo("#work", { duration: 1.6 });
-  else document.querySelector("#work")?.scrollIntoView({ behavior: "smooth" });
+const rememberSpot = () => {
+  try {
+    sessionStorage.setItem("nav-target", "#experience");
+  } catch {}
 };
 
 export default function Experience() {
-  const { open } = useProjectModal();
-
   return (
     <section id="experience" className="section-tint relative z-20 bg-bg">
       <div className="mx-auto max-w-7xl px-5 py-24 sm:px-8 sm:py-32">
@@ -57,7 +55,7 @@ export default function Experience() {
             Where I&apos;ve <span className="text-accent">worked.</span>
           </h2>
           <p className="mt-4 text-[17px] leading-relaxed text-muted">
-            Two teams, one habit: take a feature from idea to something real people can use.
+            One team, one habit: take a feature from idea to something real people can use.
           </p>
         </div>
 
@@ -75,7 +73,7 @@ export default function Experience() {
               <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
                 <div className="flex items-center gap-4">
                   <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border hairline bg-white p-1.5 sm:h-16 sm:w-16">
-                    <img src={exp.logo} alt={`${exp.company} logo`} className="h-full w-full object-contain" />
+                    <Image src={exp.logo} alt={`${exp.company} logo`} width={64} height={64} className="h-full w-full object-contain" />
                   </div>
                   <div>
                     <h3 className="text-xl font-semibold tracking-tight text-fg sm:text-2xl">{exp.role}</h3>
@@ -136,16 +134,17 @@ export default function Experience() {
                           transition={{ duration: 0.7, delay: i * 0.1, ease }}
                           className="card card-hover group flex flex-col overflow-hidden !rounded-[1.25rem]"
                         >
-                          <button
-                            type="button"
-                            onClick={() => open(p.id)}
+                          <Link
+                            href={`/projects/${projectSlug(p)}`}
+                            onClick={rememberSpot}
                             className="hover-target relative block aspect-[16/10] w-full overflow-hidden border-b hairline bg-[var(--void3)] text-left"
                             aria-label={`Open ${p.title} case study`}
                           >
-                            <img
+                            <Image
                               src={p.image}
                               alt={`${p.title} screenshot`}
-                              loading="lazy"
+                              fill
+                              sizes="(max-width: 768px) 100vw, 560px"
                               className="h-full w-full object-cover object-top transition-transform duration-700 ease-out group-hover:scale-[1.04]"
                             />
                             <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
@@ -155,7 +154,7 @@ export default function Experience() {
                             <span className="absolute bottom-3 right-3 flex h-9 w-9 translate-y-2 items-center justify-center rounded-full bg-white text-black opacity-0 shadow-lg transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
                               <ArrowUpRight size={16} />
                             </span>
-                          </button>
+                          </Link>
 
                           <div className="flex flex-1 flex-col p-5">
                             <div className="flex items-baseline justify-between gap-3">
@@ -176,13 +175,13 @@ export default function Experience() {
                             </div>
 
                             <div className="mt-5 flex items-center gap-3 border-t hairline pt-4">
-                              <button
-                                type="button"
-                                onClick={() => open(p.id)}
+                              <Link
+                                href={`/projects/${projectSlug(p)}`}
+                                onClick={rememberSpot}
                                 className="hover-target inline-flex items-center gap-1 text-[13px] font-semibold text-accent hover:underline"
                               >
                                 Case study <ArrowUpRight size={14} />
-                              </button>
+                              </Link>
                               {hasLive && (
                                 <a
                                   href={p.link}

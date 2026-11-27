@@ -17,6 +17,7 @@ import {
   Menu,
 } from "lucide-react";
 import ThemeToggle from "./ThemeToggle";
+import { scrollToTarget } from "@/lib/scroll";
 
 type NavItem = {
   id: string;
@@ -54,7 +55,7 @@ export const navItems: NavItem[] = [
     icon: FolderGit2,
     target: "#work",
   },
-  { id: "about", title: "About", short: "About", icon: User, target: "#about" },
+  { id: "about", title: "About", short: "About", icon: User, route: "/about" },
   { id: "blog", title: "Blog", short: "Blog", icon: BookOpen, route: "/blog" },
   {
     id: "contact",
@@ -68,22 +69,7 @@ export const navItems: NavItem[] = [
 const RESUME =
   "https://drive.google.com/file/d/17lmURlHIjW8VCMQNHw-ddDGYOg_t6iGM/view";
 
-const lenisTo = (target: string | number, immediate = false) => {
-  const lenis = (window as any).lenis;
-  if (lenis) {
-    lenis.scrollTo(target, {
-      immediate,
-      duration: 1.15,
-      easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-    });
-  } else if (typeof target === "number") {
-    window.scrollTo({ top: target, behavior: immediate ? "auto" : "smooth" });
-  } else {
-    document
-      .querySelector(target)
-      ?.scrollIntoView({ behavior: immediate ? "auto" : "smooth" });
-  }
-};
+const lenisTo = (target: string | number, immediate = false) => scrollToTarget(target, immediate);
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -105,6 +91,8 @@ export default function Navbar() {
   /* ── route-driven active state ── */
   useEffect(() => {
     if (pathname.startsWith("/blog")) setActiveSection("blog");
+    else if (pathname.startsWith("/about")) setActiveSection("about");
+    else if (pathname.startsWith("/projects")) setActiveSection("work");
     else if (pathname.startsWith("/contact")) setActiveSection("contact");
     else if (pathname === "/") {
       // keep current section on home, only reset if coming from another page
@@ -129,11 +117,9 @@ useEffect(() => {
   const tick = () => {
     if (stop) return;
     const now = performance.now();
-    const lenis = (window as any).lenis;
 
     // plain Home → just go to top
     if (!hash || hash === "#") {
-      lenis?.resize?.();
       lenisTo(0, true);
       return;
     }
@@ -151,7 +137,6 @@ useEffect(() => {
 
     // re-align if layout shifted
     if (Math.abs(el.getBoundingClientRect().top) > 2) {
-      lenis?.resize?.();
       lenisTo(hash, true);
     }
 
@@ -178,14 +163,23 @@ useEffect(() => {
       lastY.current = y;
     };
     onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    let ticking = false;
+    const throttled = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        ticking = false;
+        onScroll();
+      });
+    };
+    window.addEventListener("scroll", throttled, { passive: true });
+    return () => window.removeEventListener("scroll", throttled);
   }, [pathname]);
 
   /* ── active section on home ── */
   useEffect(() => {
     if (!isHome) return;
-    const ids = ["experience", "skills", "work", "about"];
+    const ids = ["experience", "skills", "work"];
     const io = new IntersectionObserver(
       (entries) =>
         entries.forEach(
@@ -287,8 +281,21 @@ const go = useCallback(
     if (isHome) {
       e.preventDefault();
       lenisTo(0);
+    } else {
+      sessionStorage.removeItem("nav-target");
     }
   };
+
+  /* Footer (or anything else) can trigger the same animated navigation. */
+  useEffect(() => {
+    const onNav = (e: Event) => {
+      const id = (e as CustomEvent<string>).detail;
+      const item = navItems.find((n) => n.id === id);
+      if (item) go(item);
+    };
+    window.addEventListener("nav-go", onNav);
+    return () => window.removeEventListener("nav-go", onNav);
+  }, [go]);
 
   return (
     <>
@@ -476,7 +483,7 @@ const go = useCallback(
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-            className="fixed inset-0 z-[100] flex flex-col justify-center overflow-hidden bg-bg/95 backdrop-blur-2xl"
+            className="fixed inset-0 z-[100] flex flex-col justify-center overflow-hidden bg-bg/95"
           >
             <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,var(--line)_1px,transparent_1px),linear-gradient(to_bottom,var(--line)_1px,transparent_1px)] bg-[size:3.5rem_3.5rem] opacity-40" />
 
@@ -495,7 +502,7 @@ const go = useCallback(
 
                 <div
                   className="relative z-20 h-full w-full overflow-y-auto px-5 pb-20 pt-20 sm:px-12 sm:pt-24 md:px-20"
-                  data-lenis-prevent="true"
+                 
                 >
                   <div className="mx-auto flex max-w-4xl flex-col">
                     {navItems.map((n, i) => {

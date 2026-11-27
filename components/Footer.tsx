@@ -2,18 +2,20 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { scrollToY } from "@/lib/scroll";
 import { ArrowUpRight, Github, Linkedin, Instagram, Facebook, Twitter, Mail } from "lucide-react";
 
 const EMAIL = "aananmunna420@gmail.com";
 
+// `id` matches the navbar item, so a click plays the same page-transition.
 const nav = [
-  { label: "Home", href: "/" },
-  { label: "Experience", href: "/#experience" },
-  { label: "Stack", href: "/#skills" },
-  { label: "Projects", href: "/#work" },
-  { label: "About", href: "/#about" },
-  { label: "Blog", href: "/blog" },
-  { label: "Contact", href: "/contact" },
+  { id: "home", label: "Home", href: "/" },
+  { id: "experience", label: "Experience", href: "/#experience" },
+  { id: "skills", label: "Stack", href: "/#skills" },
+  { id: "work", label: "Projects", href: "/#work" },
+  { id: "about", label: "About", href: "/about" },
+  { id: "blog", label: "Blog", href: "/blog" },
+  { id: "contact", label: "Contact", href: "/contact" },
 ];
 
 const WhatsApp = ({ size = 18 }: { size?: number }) => (
@@ -36,10 +38,13 @@ export default function Footer() {
   const pathname = usePathname();
   const year = new Date().getFullYear();
 
-  const backToTop = () => {
-    const lenis = (window as any).lenis;
-    if (lenis) lenis.scrollTo(0, { duration: 1.6 });
-    else window.scrollTo({ top: 0, behavior: "smooth" });
+  const backToTop = () => scrollToY(0);
+
+  const goTo = (e: React.MouseEvent, id: string) => {
+    // let ctrl/cmd/middle-click open in a new tab as usual
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+    e.preventDefault();
+    window.dispatchEvent(new CustomEvent("nav-go", { detail: id }));
   };
 
   return (
@@ -54,7 +59,7 @@ export default function Footer() {
             </Link>
 
             <p className="mt-6 max-w-lg text-[19px] leading-[1.55] tracking-tight text-fg/85 sm:text-[22px]">
-              I build web apps from the database to the button. Mostly Next.js, Node and Postgres. I learned by shipping real projects, and I care more about things working well than looking clever.
+              Full-stack developer from Kushtia. I build web apps that work, from the database to the button.
             </p>
 
             <ul className="mt-8 flex flex-wrap gap-2.5">
@@ -82,9 +87,10 @@ export default function Footer() {
               {nav.map((n) => {
                 const here = n.href === pathname;
                 return (
-                  <li key={n.href}>
+                  <li key={n.id}>
                     <Link
                       href={n.href}
+                      onClick={(e) => goTo(e, n.id)}
                       className={`hover-target group inline-flex items-center gap-1.5 text-[17px] font-medium tracking-tight transition-colors ${
                         here ? "text-accent" : "text-fg/80 hover:text-accent"
                       }`}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { scrollToTarget } from "@/lib/scroll";
 
 export default function Toc({ items }: { items: { id: string; text: string }[] }) {
   const [active, setActive] = useState(items[0]?.id ?? "");
@@ -25,11 +26,19 @@ export default function Toc({ items }: { items: { id: string; text: string }[] }
       <p className="mb-3 font-mono text-[11px] uppercase tracking-widest text-muted">
         On this page
       </p>
-      <ul className="space-y-2 border-l border-white/10">
+      <ul className="space-y-2 border-l hairline">
         {items.map((i) => (
           <li key={i.id}>
             <a
               href={`#${i.id}`}
+              onClick={(e) => {
+                e.preventDefault();
+                const el = document.getElementById(i.id);
+                if (!el) return;
+                setActive(i.id);
+                scrollToTarget(el);
+                history.replaceState(null, "", `#${i.id}`);
+              }}
               className={`-ml-px block border-l py-0.5 pl-4 text-sm transition-colors ${
                 active === i.id
                   ? "border-accent text-accent"

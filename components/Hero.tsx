@@ -1,12 +1,14 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { scrollToTarget } from "@/lib/scroll";
 import { Github, Linkedin, Instagram, Facebook, Twitter, ArrowUpRight, MapPin } from "lucide-react";
 
+// Cloudinary serves a small, auto-format copy instead of the original PNG.
 const PHOTO_SRC =
-  "https://res.cloudinary.com/dtiotqi9q/image/upload/v1790229722/ChatGPT_Image_Sep_24_2026_12_01_47_PM_hl5xrw.png";
+  "https://res.cloudinary.com/dtiotqi9q/image/upload/f_auto,q_auto,w_560/v1790229722/ChatGPT_Image_Sep_24_2026_12_01_47_PM_hl5xrw.png";
 
 /* ------------------------------------------------------------------ */
 /* Tiny syntax highlighter – only highlights the currently typed text */
@@ -187,15 +189,50 @@ const socials = [
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
+/* The typewriter lives in its own component so each keystroke re-renders only
+   this small <pre>, not the whole hero. */
+const TypedCode = memo(function TypedCode({
+  code,
+  lang,
+  reduce,
+}: {
+  code: string;
+  lang: Lang;
+  reduce: boolean;
+}) {
+  const [typed, setTyped] = useState(reduce ? code : "");
+  const [typing, setTyping] = useState(false);
+
+  useEffect(() => {
+    if (reduce) {
+      setTyped(code);
+      setTyping(false);
+      return;
+    }
+    setTyped("");
+    setTyping(true);
+    let i = 0;
+    let t: number;
+    const tick = () => {
+      i = Math.min(code.length, i + 2); // two characters per tick keeps it light
+      setTyped(code.slice(0, i));
+      if (i < code.length) {
+        t = window.setTimeout(tick, code[i - 1] === "\n" ? 40 : 28);
+      } else {
+        setTyping(false);
+      }
+    };
+    t = window.setTimeout(tick, 180);
+    return () => window.clearTimeout(t);
+  }, [code, reduce]);
+
+  return <CodeBlock code={typed} lang={lang} caret={typing || (!reduce && typed.length > 0)} />;
+});
+
 export default function Hero() {
   const [reduce, setReduce] = useState(false);
   const [active, setActive] = useState(0);
   const [touched, setTouched] = useState(false);
-
-  // typewriter
-  const [typed, setTyped] = useState("");
-  const [typing, setTyping] = useState(false);
-  const typeRef = useRef<number | null>(null);
 
   // photo popup
   const [peek, setPeek] = useState(false);
@@ -213,42 +250,6 @@ export default function Hero() {
     const id = window.setInterval(() => setActive((a) => (a + 1) % layers.length), 4800);
     return () => window.clearInterval(id);
   }, [reduce, touched]);
-
-  // Typewriter effect
-  useEffect(() => {
-    if (reduce) {
-      setTyped(layers[active].code);
-      setTyping(false);
-      return;
-    }
-
-    // clear previous typing
-    if (typeRef.current) window.clearTimeout(typeRef.current);
-    setTyped("");
-    setTyping(true);
-
-    const full = layers[active].code;
-    let i = 0;
-
-    const tick = () => {
-      i += 1;
-      setTyped(full.slice(0, i));
-      if (i < full.length) {
-        // faster on spaces / newlines, slightly slower on symbols
-        const char = full[i - 1];
-        const delay = char === "\n" ? 28 : char === " " ? 12 : 16 + Math.random() * 10;
-        typeRef.current = window.setTimeout(tick, delay);
-      } else {
-        setTyping(false);
-      }
-    };
-
-    typeRef.current = window.setTimeout(tick, 180); // small pause before typing starts
-
-    return () => {
-      if (typeRef.current) window.clearTimeout(typeRef.current);
-    };
-  }, [active, reduce]);
 
   const pick = (i: number) => {
     setTouched(true);
@@ -354,6 +355,7 @@ export default function Hero() {
                 alt=""
                 width={48}
                 height={48}
+                decoding="async"
                 className="relative h-12 w-12 select-none rounded-full border hairline object-cover object-top transition-transform duration-300 group-hover:scale-[1.04]"
                 draggable={false}
               />
@@ -379,6 +381,8 @@ export default function Hero() {
                       <img
                         src={PHOTO_SRC}
                         alt="Aanan Munna, Full Stack Developer"
+                        loading="lazy"
+                        decoding="async"
                         width={560}
                         height={700}
                         className="block aspect-[4/5] max-h-[42svh] w-full select-none object-cover object-top"
@@ -435,7 +439,7 @@ export default function Hero() {
           </motion.p>
 
           <motion.div {...rise(0.3)} className="mt-7 flex flex-wrap justify-center gap-3 lg:justify-start">
-            <a href="#work" className="hover-target btn-primary">
+            <a href="#work" onClick={(e) => { e.preventDefault(); scrollToTarget("#work"); }} className="hover-target btn-primary">
               View work
             </a>
             <Link href="/contact" className="hover-target btn-ghost">
@@ -474,7 +478,7 @@ export default function Hero() {
           {/* very subtle teal glow – static */}
           <div
             aria-hidden
-            className="absolute -inset-4 -z-10 rounded-[1.8rem] bg-[radial-gradient(50%_50%_at_50%_40%,rgba(45,212,191,0.18),transparent)] blur-xl"
+            className="absolute -inset-4 -z-10 rounded-[1.8rem] bg-[radial-gradient(50%_50%_at_50%_40%,rgba(45,212,191,0.18),transparent)] blur-lg"
           />
 
           {/* Terminal window – completely static */}
@@ -525,7 +529,7 @@ export default function Hero() {
               className="relative min-h-[17.5rem] overflow-x-auto px-3 pb-4 pt-3 sm:min-h-[18.5rem]"
             >
               <pre className="font-mono text-[12px] leading-[1.7] sm:text-[12.5px]">
-                <CodeBlock code={typed} lang={current.lang} caret={typing || (!reduce && typed.length > 0)} />
+                <TypedCode code={current.code} lang={current.lang} reduce={reduce} />
               </pre>
             </div>
 
