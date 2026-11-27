@@ -325,46 +325,49 @@ function pickTier(): Tier {
   return weak ? "circle" : "drip";
 }
 
+/** Toggle the theme; `from` is the element clicked (the reveal grows from it). */
+export function toggleTheme(from: Element) {
+  if (busy) return;
+  const root = document.documentElement;
+  const toDark = root.dataset.theme !== "dark";
+  const next = toDark ? "dark" : "light";
+
+  const apply = () => {
+    root.dataset.theme = next;
+    try {
+      sessionStorage.setItem("theme", next);
+    } catch {}
+  };
+
+  const tier = pickTier();
+  if (tier === "instant") {
+    apply();
+    return;
+  }
+
+  busy = true;
+  try {
+    if (tier === "canvas") {
+      runCanvas(toDark, apply);
+    } else {
+      const r = from.getBoundingClientRect();
+      runReveal(tier, toDark, apply, {
+        x: r.left + r.width / 2,
+        y: r.top + r.height / 2,
+      });
+    }
+  } catch {
+    apply(); // never leave the user without a working toggle
+    busy = false;
+  }
+}
+
 export default function ThemeToggle({
   className = "",
 }: {
   className?: string;
 }) {
-  const toggle = (e: MouseEvent<HTMLButtonElement>) => {
-    if (busy) return;
-    const root = document.documentElement;
-    const toDark = root.dataset.theme !== "dark";
-    const next = toDark ? "dark" : "light";
-
-    const apply = () => {
-      root.dataset.theme = next;
-      try {
-        sessionStorage.setItem("theme", next);
-      } catch {}
-    };
-
-    const tier = pickTier();
-    if (tier === "instant") {
-      apply();
-      return;
-    }
-
-    busy = true;
-    try {
-      if (tier === "canvas") {
-        runCanvas(toDark, apply);
-      } else {
-        const r = e.currentTarget.getBoundingClientRect();
-        runReveal(tier, toDark, apply, {
-          x: r.left + r.width / 2,
-          y: r.top + r.height / 2,
-        });
-      }
-    } catch {
-      apply(); // never leave the user without a working toggle
-      busy = false;
-    }
-  };
+  const toggle = (e: MouseEvent<HTMLButtonElement>) => toggleTheme(e.currentTarget);
 
   return (
     <button

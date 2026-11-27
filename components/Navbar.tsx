@@ -17,6 +17,7 @@ import {
   Menu,
 } from "lucide-react";
 import ThemeToggle from "./ThemeToggle";
+import Dock from "./Dock";
 import { scrollToTarget } from "@/lib/scroll";
 
 type NavItem = {
@@ -80,7 +81,6 @@ export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [clicked, setClicked] = useState<NavItem | null>(null);
   const [hoveredRow, setHoveredRow] = useState<string | null>(null);
-  const [hoveredDock, setHoveredDock] = useState<string | null>(null);
   const [scrolled, setScrolled] = useState(false);
   const [showDock, setShowDock] = useState(false);
   const [activeSection, setActiveSection] = useState("home");
@@ -165,6 +165,7 @@ useEffect(() => {
         return;
       }
       if (y < 90) setShowDock(false);
+      else if (window.innerWidth < 640) setShowDock(true); // phones: always reachable
       else if (y < lastY.current) setShowDock(true);
       else if (y > lastY.current + 6) setShowDock(false);
       lastY.current = y;
@@ -381,108 +382,15 @@ const go = useCallback(
       </motion.nav>
 
       {/* ===================== FLOATING DOCK ===================== */}
-      <AnimatePresence>
-        {showDock && (
-          <motion.div
-            initial={{ y: 80, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 80, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 480, damping: 38 }}
-            className="pointer-events-none fixed bottom-3 left-1/2 z-50 max-w-[calc(100vw-1rem)] -translate-x-1/2"
-          >
-            <div
-              className="pointer-events-auto relative flex items-center gap-0.5 rounded-2xl border px-1.5 py-1.5 shadow-2xl backdrop-blur-xl"
-              style={{
-                background: "var(--dock-bg)",
-                borderColor: "var(--line)",
-              }}
-            >
-              {navItems.map((n) => {
-                const Icon = n.icon;
-                const active = activeSection === n.id;
-                const hovered = hoveredDock === n.id;
-                return (
-                  <button
-                    key={n.id}
-                    onClick={() => go(n)}
-                    onMouseEnter={() => setHoveredDock(n.id)}
-                    onMouseLeave={() => setHoveredDock(null)}
-                    aria-label={n.short}
-                    className="hover-target relative flex h-9 w-9 items-center justify-center rounded-xl sm:h-11 sm:w-11"
-                  >
-                    <motion.span
-                      className="absolute inset-0 rounded-xl bg-white"
-                      initial={false}
-                      animate={{
-                        opacity: active ? 0.1 : hovered ? 0.06 : 0,
-                        scale: active || hovered ? 1 : 0.88,
-                      }}
-                      transition={{ duration: 0.15 }}
-                    />
-                    <motion.span
-                      animate={{
-                        y: active ? -1 : 0,
-                        scale: active ? 1.12 : hovered ? 1.07 : 1,
-                      }}
-                      transition={{
-                        type: "spring",
-                        stiffness: 520,
-                        damping: 28,
-                      }}
-                      className="relative z-10"
-                    >
-                      <Icon
-                        size={18}
-                        strokeWidth={active ? 2.3 : 1.8}
-                        className={`transition-colors duration-150 ${
-                          active
-                            ? "text-accent"
-                            : hovered
-                              ? "text-fg"
-                              : "text-muted"
-                        }`}
-                      />
-                    </motion.span>
-                    {active && (
-                      <motion.span
-                        layoutId="dock-dot"
-                        className="absolute -bottom-0.5 h-1 w-1 rounded-full bg-accent"
-                        transition={{
-                          type: "spring",
-                          stiffness: 600,
-                          damping: 32,
-                        }}
-                      />
-                    )}
-                    <AnimatePresence>
-                      {hovered && (
-                        <motion.span
-                          initial={{ opacity: 0, y: 6, scale: 0.92 }}
-                          animate={{ opacity: 1, y: 0, scale: 1 }}
-                          exit={{ opacity: 0, y: 4, scale: 0.95 }}
-                          transition={{ duration: 0.12 }}
-                          className="pointer-events-none absolute -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-fg px-2.5 py-1 text-[11px] font-medium text-bg shadow-lg"
-                        >
-                          {n.short}
-                        </motion.span>
-                      )}
-                    </AnimatePresence>
-                  </button>
-                );
-              })}
-              <span className="mx-0.5 h-5 w-px bg-white/10 sm:mx-1" />
-              <ThemeToggle className="!h-9 !w-9 !rounded-xl !border-0 !text-muted hover:!text-accent sm:!h-11 sm:!w-11" />
-              <button
-                onClick={() => setMenuOpen(true)}
-                aria-label="Open menu"
-                className="hover-target flex h-9 w-9 items-center justify-center rounded-xl text-muted transition-colors hover:text-fg sm:h-11 sm:w-11"
-              >
-                <Menu size={17} />
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <Dock
+        visible={showDock}
+        active={activeSection}
+        onGo={(id) => {
+          const item = navItems.find((n) => n.id === id);
+          if (item) go(item);
+        }}
+        onMenu={() => setMenuOpen(true)}
+      />
 
       {/* ===================== FULL-SCREEN MENU + TRANSITION COVER ===================== */}
       <AnimatePresence>
