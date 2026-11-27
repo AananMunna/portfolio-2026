@@ -6,9 +6,9 @@ import { useEffect } from 'react';
  * One soft "pop" for every click on something clickable (link, button, card).
  * Clicks on empty space stay silent.
  *
- * The sound is synthesised with the Web Audio API, so there is no audio file
- * to download: a ~90 ms rising sine blip (A5 -> E6) with a tiny soft attack
- * and a quick decay, plus a quiet octave overtone for a "bubble" sparkle.
+ * The sound is synthesised with the Web Audio API (no audio file): a dry
+ * "tick" transient, a soft low body and a faint high shine, about 60 ms in
+ * total, in the spirit of the iOS keyboard click.
  */
 
 const CLICKABLE =
@@ -31,26 +31,53 @@ function pop() {
   if (ac.state === 'suspended') void ac.resume();
 
   const now = ac.currentTime;
-  const out = ac.createGain();
-  out.gain.setValueAtTime(0.0001, now);
-  out.gain.exponentialRampToValueAtTime(0.16, now + 0.008);
-  out.gain.exponentialRampToValueAtTime(0.0001, now + 0.11);
-  out.connect(ac.destination);
+  const master = ac.createGain();
+  master.gain.value = 0.9;
+  // gentle low-pass keeps it warm and "glassy" instead of harsh
+  const lp = ac.createBiquadFilter();
+  lp.type = 'lowpass';
+  lp.frequency.value = 7000;
+  master.connect(lp).connect(ac.destination);
 
-  const tone = (type: OscillatorType, from: number, to: number, level: number) => {
-    const o = ac.createOscillator();
-    const g = ac.createGain();
-    o.type = type;
-    o.frequency.setValueAtTime(from, now);
-    o.frequency.exponentialRampToValueAtTime(to, now + 0.07);
-    g.gain.value = level;
-    o.connect(g).connect(out);
-    o.start(now);
-    o.stop(now + 0.12);
-  };
+  // 1. the "tick": short, dry, woody transient (like the iOS keyboard click)
+  const nBuf = ac.createBuffer(1, Math.floor(ac.sampleRate * 0.02), ac.sampleRate);
+  const d = nBuf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 3);
+  const noise = ac.createBufferSource();
+  noise.buffer = nBuf;
+  const bp = ac.createBiquadFilter();
+  bp.type = 'bandpass';
+  bp.frequency.value = 3200;
+  bp.Q.value = 1.4;
+  const ng = ac.createGain();
+  ng.gain.value = 0.55;
+  noise.connect(bp).connect(ng).connect(master);
+  noise.start(now);
 
-  tone('sine', 880, 1318.5, 1); // A5 -> E6, a rising perfect fifth
-  tone('sine', 1760, 2637, 0.22); // soft overtone
+  // 2. the "body": a soft low thump that gives it weight
+  const thump = ac.createOscillator();
+  const tg = ac.createGain();
+  thump.type = 'sine';
+  thump.frequency.setValueAtTime(260, now);
+  thump.frequency.exponentialRampToValueAtTime(130, now + 0.05);
+  tg.gain.setValueAtTime(0.0001, now);
+  tg.gain.exponentialRampToValueAtTime(0.5, now + 0.003);
+  tg.gain.exponentialRampToValueAtTime(0.0001, now + 0.06);
+  thump.connect(tg).connect(master);
+  thump.start(now);
+  thump.stop(now + 0.07);
+
+  // 3. the "shine": a tiny high tone that fades fast, for the premium glint
+  const shine = ac.createOscillator();
+  const sg = ac.createGain();
+  shine.type = 'sine';
+  shine.frequency.setValueAtTime(2350, now);
+  sg.gain.setValueAtTime(0.0001, now);
+  sg.gain.exponentialRampToValueAtTime(0.13, now + 0.002);
+  sg.gain.exponentialRampToValueAtTime(0.0001, now + 0.045);
+  shine.connect(sg).connect(master);
+  shine.start(now);
+  shine.stop(now + 0.05);
 }
 
 export default function ClickSound() {

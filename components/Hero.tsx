@@ -482,7 +482,7 @@ export default function Hero() {
           />
 
           {/* Terminal window – completely static */}
-          <div className="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0a0f0e] shadow-[0_25px_50px_-20px_rgba(0,0,0,0.6)]">
+          <div className="keep-white relative overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0a0f0e] shadow-[0_25px_50px_-20px_rgba(0,0,0,0.6)]">
             {/* iOS-style title bar */}
             <div className="relative flex items-center gap-2 border-b border-white/[0.06] bg-[#0d1413] px-3.5 py-2.5">
               {/* traffic lights */}

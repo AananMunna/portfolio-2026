@@ -75,6 +75,7 @@ export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const isHome = pathname === "/";
+  const isProject = pathname.startsWith("/projects");
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [clicked, setClicked] = useState<NavItem | null>(null);
@@ -157,6 +158,12 @@ useEffect(() => {
     const onScroll = () => {
       const y = window.scrollY;
       setScrolled(y > 70);
+      if (isProject) {
+        // case-study pages: only the floating dock, always visible
+        setShowDock(true);
+        lastY.current = y;
+        return;
+      }
       if (y < 90) setShowDock(false);
       else if (y < lastY.current) setShowDock(true);
       else if (y > lastY.current + 6) setShowDock(false);
@@ -174,7 +181,7 @@ useEffect(() => {
     };
     window.addEventListener("scroll", throttled, { passive: true });
     return () => window.removeEventListener("scroll", throttled);
-  }, [pathname]);
+  }, [pathname, isProject]);
 
   /* ── active section on home ── */
   useEffect(() => {
@@ -301,6 +308,7 @@ const go = useCallback(
     <>
       {/* ===================== TOP BAR ===================== */}
       <motion.nav
+        style={isProject ? { display: "none" } : undefined}
         initial={false}
         animate={{ y: scrolled ? -100 : 0, opacity: scrolled ? 0 : 1 }}
         transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
@@ -400,7 +408,7 @@ const go = useCallback(
                     onMouseEnter={() => setHoveredDock(n.id)}
                     onMouseLeave={() => setHoveredDock(null)}
                     aria-label={n.short}
-                    className="hover-target relative flex h-10 w-10 items-center justify-center rounded-xl sm:h-11 sm:w-11"
+                    className="hover-target relative flex h-9 w-9 items-center justify-center rounded-xl sm:h-11 sm:w-11"
                   >
                     <motion.span
                       className="absolute inset-0 rounded-xl bg-white"
@@ -462,11 +470,12 @@ const go = useCallback(
                   </button>
                 );
               })}
-              <span className="mx-1 h-5 w-px bg-white/10" />
+              <span className="mx-0.5 h-5 w-px bg-white/10 sm:mx-1" />
+              <ThemeToggle className="!h-9 !w-9 !rounded-xl !border-0 !text-muted hover:!text-accent sm:!h-11 sm:!w-11" />
               <button
                 onClick={() => setMenuOpen(true)}
                 aria-label="Open menu"
-                className="hover-target flex h-10 w-10 items-center justify-center rounded-xl text-muted transition-colors hover:text-fg sm:h-11 sm:w-11"
+                className="hover-target flex h-9 w-9 items-center justify-center rounded-xl text-muted transition-colors hover:text-fg sm:h-11 sm:w-11"
               >
                 <Menu size={17} />
               </button>

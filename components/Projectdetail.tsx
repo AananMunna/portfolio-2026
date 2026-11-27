@@ -263,7 +263,7 @@ export default function ProjectDetail({
   const hasGallery = !!extra.gallery?.length;
 
   return (
-    <div className="relative bg-bg pt-16 text-fg">
+    <div className="relative bg-bg pb-24 text-fg">
       {/* Reading progress */}
       <motion.div
         aria-hidden
