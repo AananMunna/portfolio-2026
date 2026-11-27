@@ -16,13 +16,18 @@ import type { MouseEvent } from "react";
  *               dark -> light : exact reverse, paint climbs back up.
  *  2. "circle"  Weak devices (<=4 cores, <=4GB RAM, data-saver): cheap circular
  *               reveal growing from the toggle button (only 2 keyframes).
- *  3. "canvas"  Browsers without View Transitions: lightweight canvas paint drip.
+ *  3. "canvas"  Touch devices and browsers without View Transitions: canvas
+ *               paint drip. The theme is only swapped once the screen is fully
+ *               covered, so the heavy page repaint never runs mid-animation.
  *  4. "instant" prefers-reduced-motion: no animation at all.
  */
 
 const MS = 1150;
-const PAINT = "#03050c"; // canvas fallback only; must equal the dark page background
+// canvas paint only; must equal the page backgrounds in globals.css
+const PAINT = "#03050c";
+const PAINT_LIGHT = "#fbfbfd";
 const SHEEN = "rgba(255,255,255,0.09)";
+const SHEEN_LIGHT = "rgba(16,24,40,0.10)"; // edge line on the light paint
 
 let busy = false;
 
@@ -204,6 +209,7 @@ function drawCanvas(
   W: number,
   H: number,
   u: number,
+  toDark: boolean,
 ) {
   solve(f, u);
   const { xs, ys } = f;
@@ -225,18 +231,20 @@ function drawCanvas(
 
   ctx.clearRect(0, 0, W, H);
 
+  // dark paint covers what is ABOVE the front, light paint what is BELOW it
+  const base = toDark ? -4 : H + 40;
   ctx.beginPath();
-  ctx.moveTo(0, -4);
+  ctx.moveTo(0, base);
   ctx.lineTo(xs[0], ys[0]);
   trace(false);
-  ctx.lineTo(W, -4);
+  ctx.lineTo(W, base);
   ctx.closePath();
-  ctx.fillStyle = PAINT;
+  ctx.fillStyle = toDark ? PAINT : PAINT_LIGHT;
   ctx.fill();
 
   ctx.beginPath();
   trace(true);
-  ctx.strokeStyle = SHEEN;
+  ctx.strokeStyle = toDark ? SHEEN : SHEEN_LIGHT;
   ctx.lineWidth = 2;
   ctx.lineJoin = "round";
   ctx.stroke();
@@ -285,52 +293,58 @@ function runCanvas(toDark: boolean, swap: () => void) {
   ctx.scale(s, s);
 
   const field = buildField(W, H, clamp(Math.round(W / 8), 60, 180));
+  const root = document.documentElement;
   let swapped = false;
   const doSwap = () => {
     if (swapped) return;
     swapped = true;
+    // no per-element colour transitions: they would repaint during the fade
+    root.classList.add("theme-switching");
     swap();
   };
   let guard = 0;
+  let done = false;
   const cleanup = () => {
+    if (done) return;
+    done = true;
     window.clearTimeout(guard);
     doSwap(); // theme always ends up applied, even if frames were dropped
+    root.classList.remove("theme-switching");
     canvas.remove();
     busy = false;
   };
   guard = window.setTimeout(cleanup, MS + 2500);
 
+  // Both directions: paint over the still page -> swap theme while the screen is
+  // fully covered -> wait for the repaint -> fade the paint away.
+  const frame = (t: number) =>
+    drawCanvas(ctx, field, W, H, toDark ? t : 1 - t, toDark);
+
   let t0 = 0;
   const loop = (now: number) => {
+    if (done) return;
     if (!t0) t0 = now;
-    const t = (now - t0) / MS;
-    if (t >= 1) {
-      if (toDark) {
-        drawCanvas(ctx, field, W, H, 1);
-        doSwap();
+    const t = Math.min(1, (now - t0) / MS);
+    frame(t);
+    if (t < 1) {
+      requestAnimationFrame(loop);
+      return;
+    }
+    // let the fully covered frame reach the screen before the heavy swap
+    requestAnimationFrame(() => {
+      doSwap();
+      requestAnimationFrame(() =>
         requestAnimationFrame(() => {
           canvas.style.opacity = "0";
           window.setTimeout(cleanup, 220);
-        });
-      } else {
-        cleanup();
-      }
-      return;
-    }
-    drawCanvas(ctx, field, W, H, toDark ? t : 1 - t);
-    requestAnimationFrame(loop);
+        }),
+      );
+    });
   };
 
-  if (toDark) {
-    document.body.appendChild(canvas);
-    requestAnimationFrame(loop);
-  } else {
-    // start fully covered, flip to light under the paint, then peel upward
-    drawCanvas(ctx, field, W, H, 1);
-    document.body.appendChild(canvas);
-    doSwap();
-    requestAnimationFrame(() => requestAnimationFrame(loop));
-  }
+  frame(0);
+  document.body.appendChild(canvas);
+  requestAnimationFrame(loop);
 }
 
 /* ------------------------------------------------------------------ */

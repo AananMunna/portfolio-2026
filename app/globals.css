@@ -172,6 +172,11 @@ html:not([data-theme="dark"]) .shadow-2xl {
   --tw-shadow-color: rgba(16, 24, 40, 0.16);
 }
 
+/* set by ThemeToggle while the theme swaps underneath the paint */
+.theme-switching *,
+.theme-switching *::before,
+.theme-switching *::after { transition: none !important; }
+
 /* theme toggle icons: show the mode you will switch TO */
 .theme-sun { display: none; }
 .theme-moon { display: block; }
