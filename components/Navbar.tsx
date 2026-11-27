@@ -364,7 +364,7 @@ const go = useCallback(
           </div>
 
           <div className="flex items-center gap-2 lg:hidden">
-            <ThemeToggle />
+            <ThemeToggle className="!h-10 !w-10 border-white/15 bg-white/5 hover:bg-white/10" />
             <button
               onClick={() => setMenuOpen(true)}
               aria-label="Open menu"
