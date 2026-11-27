@@ -141,19 +141,7 @@ function runReveal(
     "::view-transition-new(root){clip-path:inset(0 0 100% 0);}"; // hidden until the animation starts
   document.head.appendChild(style);
 
-  // A fill:forwards animation on a view-transition pseudo-element outlives its
-  // transition and gets re-applied to the NEXT one (this is what made the 2nd
-  // toggle stutter). Clear any leftovers before starting.
-  for (const a of document.getAnimations()) {
-    const pe = (a.effect as KeyframeEffect | null)?.pseudoElement;
-    if (pe && pe.startsWith("::view-transition")) a.cancel();
-  }
-
   let anim: Animation | null = null;
-  const guard = window.setTimeout(() => {
-    busy = false; // never leave the toggle dead if a transition stalls
-  }, MS + 2500);
-
   const vt = (document as any).startViewTransition(swap);
 
   vt.ready
@@ -187,7 +175,8 @@ function runReveal(
     .catch(() => {});
 
   vt.finished.finally(() => {
-    window.clearTimeout(guard);
+    // fill:"forwards" keeps the animation alive after the transition ends, and it
+    // gets applied again on the next toggle (the stutter). Remove it.
     anim?.cancel();
     style.remove();
     busy = false;
@@ -209,37 +198,35 @@ function drawCanvas(
   const { xs, ys } = f;
   const last = xs.length - 1;
 
-  // draws directly on ctx (no Path2D objects => nothing for the GC per frame)
-  const trace = (moveFirst: boolean) => {
-    if (moveFirst) ctx.moveTo(xs[0], ys[0]);
-    ctx.lineTo((xs[0] + xs[1]) / 2, (ys[0] + ys[1]) / 2);
+  const trace = (p: Path2D, moveFirst: boolean) => {
+    if (moveFirst) p.moveTo(xs[0], ys[0]);
+    p.lineTo((xs[0] + xs[1]) / 2, (ys[0] + ys[1]) / 2);
     for (let i = 1; i < last; i++)
-      ctx.quadraticCurveTo(
+      p.quadraticCurveTo(
         xs[i],
         ys[i],
         (xs[i] + xs[i + 1]) / 2,
         (ys[i] + ys[i + 1]) / 2,
       );
-    ctx.lineTo(xs[last], ys[last]);
+    p.lineTo(xs[last], ys[last]);
   };
 
   ctx.clearRect(0, 0, W, H);
+  const edge = new Path2D();
+  trace(edge, true);
+  const fill = new Path2D();
+  fill.moveTo(0, -4);
+  fill.lineTo(xs[0], ys[0]);
+  trace(fill, false);
+  fill.lineTo(W, -4);
+  fill.closePath();
 
-  ctx.beginPath();
-  ctx.moveTo(0, -4);
-  ctx.lineTo(xs[0], ys[0]);
-  trace(false);
-  ctx.lineTo(W, -4);
-  ctx.closePath();
   ctx.fillStyle = PAINT;
-  ctx.fill();
-
-  ctx.beginPath();
-  trace(true);
+  ctx.fill(fill);
   ctx.strokeStyle = SHEEN;
   ctx.lineWidth = 2;
   ctx.lineJoin = "round";
-  ctx.stroke();
+  ctx.stroke(edge);
 
   for (const s of f.streams) {
     const y = ys[s.i];
@@ -254,26 +241,6 @@ function drawCanvas(
     ctx.arc(s.x - r * 0.3, y + r * 0.05, r * 0.35, 0, 6.2832);
     ctx.fill();
   }
-}
-
-/**
- * Run `done` once the page has finished repainting: 4 smooth frames in a row.
- * Repainting a whole page after a theme swap takes far longer than 2 frames on
- * a phone, and starting the peel during it is what made dark -> light stutter.
- */
-function whenSettled(done: () => void) {
-  const start = performance.now();
-  let last = start;
-  let smooth = 0;
-  const check = () => {
-    const now = performance.now();
-    smooth = now - last < 40 ? smooth + 1 : 0;
-    last = now;
-    // the 900ms cap keeps slow devices from waiting forever
-    if ((smooth >= 4 && now - start > 120) || now - start > 900) done();
-    else requestAnimationFrame(check);
-  };
-  requestAnimationFrame(check);
 }
 
 function runCanvas(toDark: boolean, swap: () => void) {
@@ -305,24 +272,10 @@ function runCanvas(toDark: boolean, swap: () => void) {
   ctx.scale(s, s);
 
   const field = buildField(W, H, clamp(Math.round(W / 8), 60, 180));
-  const root = document.documentElement;
-  let swapped = false;
-  const doSwap = () => {
-    if (swapped) return;
-    swapped = true;
-    // no per-element colour transitions: they keep repainting under the paint
-    root.classList.add("theme-switching");
-    swap();
-  };
-  let guard = 0;
   const cleanup = () => {
-    window.clearTimeout(guard);
-    doSwap(); // theme always ends up applied, even if frames were dropped
-    root.classList.remove("theme-switching");
     canvas.remove();
     busy = false;
   };
-  guard = window.setTimeout(cleanup, MS + 2500);
 
   let t0 = 0;
   const loop = (now: number) => {
@@ -331,7 +284,7 @@ function runCanvas(toDark: boolean, swap: () => void) {
     if (t >= 1) {
       if (toDark) {
         drawCanvas(ctx, field, W, H, 1);
-        doSwap();
+        swap();
         requestAnimationFrame(() => {
           canvas.style.opacity = "0";
           window.setTimeout(cleanup, 220);
@@ -352,8 +305,8 @@ function runCanvas(toDark: boolean, swap: () => void) {
     // start fully covered, flip to light under the paint, then peel upward
     drawCanvas(ctx, field, W, H, 1);
     document.body.appendChild(canvas);
-    doSwap();
-    whenSettled(() => requestAnimationFrame(loop));
+    swap();
+    requestAnimationFrame(() => requestAnimationFrame(loop));
   }
 }
 
@@ -367,9 +320,6 @@ function pickTier(): Tier {
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches)
     return "instant";
   const nav = navigator as any;
-  // Phones/tablets: a View Transition snapshots + masks the whole live page
-  // every frame, which is what hangs mobile GPUs. The canvas paint is cheap.
-  if (window.matchMedia("(pointer: coarse)").matches) return "canvas";
   const hasVT = typeof (document as any).startViewTransition === "function";
   if (!hasVT) return "canvas";
   const weak =
