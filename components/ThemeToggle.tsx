@@ -4,246 +4,334 @@ import { Moon, Sun } from "lucide-react";
 import type { MouseEvent } from "react";
 
 /**
- * HYBRID THEME TOGGLE
+ * VENOM THEME TOGGLE
  * Light is always the starting theme. Dark is an opt-in for the browser session.
  *
- * The best available effect is picked automatically:
+ * A black, glossy symbiote bulges out of the button, whips curling tendrils
+ * across the screen, sheds heavy droplets, then the body floods the rest. The
+ * page flips theme underneath it.
  *
- *  1. "drip"    View Transitions + animated clip-path. A REAL reveal: the new
- *               theme shows through a drippy paint front. Thick streams run
- *               faster, thin parts lag behind, random pattern on every click.
- *               light -> dark : paint falls from the top.
- *               dark -> light : exact reverse, paint climbs back up.
- *  2. "circle"  Weak devices (<=4 cores, <=4GB RAM, data-saver): cheap circular
- *               reveal growing from the toggle button (only 2 keyframes).
- *  3. "canvas"  Browsers without View Transitions: lightweight canvas paint drip.
- *  4. "instant" prefers-reduced-motion: no animation at all.
+ *  1. "venom"   View Transitions + animated clip-path. The NEW theme is revealed
+ *               through the venom shape, so text and content stay visible while
+ *               the goo flows beneath them. A small canvas draws the glossy rim,
+ *               tips and droplets on exactly the same moving outline.
+ *  2. "canvas"  Browsers without View Transitions: the goo covers the screen,
+ *               the theme swaps under it, then it fades away.
+ *  3. "instant" prefers-reduced-motion: no animation at all.
+ *
+ * light -> dark : black venom.   dark -> light : pale "anti-venom".
+ *
+ * Performance notes: every vertex moves along a straight ray, so ~26 keyframes
+ * interpolate exactly; all geometry is precomputed before the click is handled;
+ * the canvas is pixel-capped and uses one Path2D per frame; CSS transitions are
+ * disabled while the theme swaps so the new snapshot is captured clean.
  */
 
-const MS = 1150;
-const PAINT = "#03050c"; // canvas fallback only; must equal the dark page background
-const SHEEN = "rgba(255,255,255,0.09)";
+const MS = 1000;
 
 let busy = false;
 
-/* ------------------------------------------------------------------ */
-/* Shared drip "physics"                                              */
-/* ------------------------------------------------------------------ */
-
-type Stream = { i: number; x: number; amp: number };
-type Field = {
-  xs: Float32Array;
-  ys: Float32Array;
-  delay: Float32Array;
-  dur: Float32Array;
-  streams: Stream[];
-  travel: number;
-};
-
 const rnd = (a: number, b: number) => a + Math.random() * (b - a);
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
+const TAU = Math.PI * 2;
 
-/** n columns across the screen. Each column gets its own start time + speed. */
-function buildField(W: number, H: number, n: number): Field {
-  const xs = new Float32Array(n + 1);
-  const ys = new Float32Array(n + 1);
-  const delay = new Float32Array(n + 1);
-  const dur = new Float32Array(n + 1);
+/* ------------------------------------------------------------------ */
+/* Venom field (polar, around the button)                             */
+/* ------------------------------------------------------------------ */
 
-  // narrow fast streams (thick pour) + a few wide soft blobs
-  const blobs: { c: number; s: number; a: number }[] = [];
-  const count = clamp(Math.round(W / 150), 4, 10);
-  for (let k = 0; k < count; k++)
-    blobs.push({ c: rnd(0.03, 0.97) * W, s: rnd(7, 14), a: rnd(0.45, 0.95) });
+type Drop = {
+  ts: number; // seconds after start
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  r: number;
+};
+
+type Field = {
+  n: number;
+  th: Float32Array; // base angle of each vertex
+  bend: Float32Array; // how much each vertex curls with distance
+  delay: Float32Array;
+  dur: Float32Array;
+  tips: { i: number; r: number }[];
+  drops: Drop[];
+  R: number;
+  ox: number;
+  oy: number;
+};
+
+type Finger = { c: number; w: number; a: number; curl: number; main: boolean };
+
+// heavy, viscous start; smooth, quick finish
+const ease = (p: number) => 0.45 * p * p + 0.55 * (p * p * (3 - 2 * p));
+
+function buildField(
+  W: number,
+  H: number,
+  ox: number,
+  oy: number,
+  coarse: boolean,
+): Field {
+  const R =
+    Math.max(
+      Math.hypot(ox, oy),
+      Math.hypot(W - ox, oy),
+      Math.hypot(ox, H - oy),
+      Math.hypot(W - ox, H - oy),
+    ) + 80;
+  const ref = R * 0.65; // px -> radians at a typical tendril distance
+
+  // constant-width tendrils (long) + thin side branches + a few fat lumps
+  const fingers: Finger[] = [];
+  const mainCount = coarse ? 9 : 13;
+  for (let k = 0; k < mainCount; k++)
+    fingers.push({
+      c: rnd(0, TAU),
+      w: rnd(9, 20) / ref,
+      a: rnd(0.6, 1),
+      curl: rnd(-0.32, 0.32),
+      main: true,
+    });
+  const thinCount = coarse ? 6 : 12;
+  for (let k = 0; k < thinCount; k++)
+    fingers.push({
+      c: rnd(0, TAU),
+      w: rnd(4, 8) / ref,
+      a: rnd(0.35, 0.6),
+      curl: rnd(-0.5, 0.5),
+      main: false,
+    });
   for (let k = 0; k < 4; k++)
-    blobs.push({ c: rnd(0, 1) * W, s: rnd(35, 80), a: rnd(0.15, 0.3) });
+    fingers.push({
+      c: rnd(0, TAU),
+      w: rnd(0.25, 0.5),
+      a: rnd(0.12, 0.25),
+      curl: 0,
+      main: false,
+    });
+
+  // adaptive sampling: coarse everywhere, dense across every thin tendril
+  const angles: number[] = [];
+  const base = coarse ? 40 : 56;
+  for (let i = 0; i < base; i++) angles.push((i / base) * TAU);
+  for (const f of fingers) {
+    if (f.w > 0.1) continue;
+    const per = f.main ? 14 : 9;
+    for (let k = 0; k < per; k++) {
+      const t = (k / (per - 1) - 0.5) * 4.6 * f.w;
+      angles.push((f.c + t + TAU) % TAU);
+    }
+  }
+  angles.sort((a, b) => a - b);
+
+  const n = angles.length;
+  const th = new Float32Array(n);
+  const bend = new Float32Array(n);
+  const delay = new Float32Array(n);
+  const dur = new Float32Array(n);
 
   const p1 = rnd(0, 6.28),
     p2 = rnd(0, 6.28),
     p3 = rnd(0, 6.28);
-  for (let i = 0; i <= n; i++) {
-    const x = (i * W) / n;
-    xs[i] = x;
+
+  for (let i = 0; i < n; i++) {
+    const a = angles[i];
+    th[i] = a;
     let g =
-      0.3 +
-      0.16 * Math.sin(x * 0.011 + p1) +
-      0.1 * Math.sin(x * 0.027 + p2) +
-      0.05 * Math.sin(x * 0.06 + p3) +
-      rnd(-0.012, 0.012);
-    for (const b of blobs) g += b.a * Math.exp(-(((x - b.c) / b.s) ** 2));
+      0.26 +
+      0.09 * Math.sin(a * 3 + p1) +
+      0.06 * Math.sin(a * 7 + p2) +
+      0.03 * Math.sin(a * 15 + p3);
+    let b = 0;
+    for (const f of fingers) {
+      let d = Math.abs(a - f.c);
+      d = Math.min(d, TAU - d);
+      const wgt = Math.exp(-((d / f.w) ** 2));
+      g += f.a * wgt;
+      b += f.curl * wgt;
+    }
     g = clamp(g, 0, 1);
-    // more paint => starts earlier AND moves faster
-    delay[i] = (1 - g) * 0.32;
-    dur[i] = 0.5 + (1 - g) * 0.18; // delay + dur <= 1
+    delay[i] = (1 - g) * 0.46; // more venom => starts earlier ...
+    dur[i] = 0.5 + (1 - g) * 0.04; // ... delay + dur <= 1
+    bend[i] = b;
   }
 
-  const streams: Stream[] = blobs
-    .slice(0, count)
-    .map((b) => ({
-      i: clamp(Math.round((b.c / W) * n), 0, n),
-      x: b.c,
-      amp: b.a,
-    }));
-
-  return { xs, ys, delay, dur, streams, travel: H + 30 };
-}
-
-// gravity-ish easing: slow start, smooth finish
-const ease = (p: number) => 0.55 * p * p + 0.45 * (p * p * (3 - 2 * p));
-
-/** front position of every column at progress u (0 = nothing, 1 = everything covered) */
-function solve(f: Field, u: number) {
-  for (let i = 0; i < f.xs.length; i++) {
-    const p = clamp((u - f.delay[i]) / f.dur[i], 0, 1);
-    f.ys[i] = ease(p) * f.travel;
-  }
-}
-
-/* ------------------------------------------------------------------ */
-/* Tier 1 + 2: View Transitions reveal                                */
-/* ------------------------------------------------------------------ */
-
-function dripKeyframes(W: number, H: number, toDark: boolean) {
-  const n = clamp(Math.round(W / 14), 36, 90);
-  const f = buildField(W, H, n);
-  const FRAMES = 26;
-  const frames: { clipPath: string }[] = [];
-
-  for (let k = 0; k <= FRAMES; k++) {
-    const t = k / FRAMES;
-    // dark->light plays the very same motion backwards
-    solve(f, toDark ? t : 1 - t);
-
-    // light->dark : reveal what is ABOVE the front (paint pours down)
-    // dark->light : reveal what is BELOW the front (paint climbs up)
-    const base = toDark ? -2 : H + 40;
-    let pts = `-2px ${base}px, ${W + 2}px ${base}px`;
-    for (let i = n; i >= 0; i--)
-      pts += `, ${f.xs[i].toFixed(1)}px ${f.ys[i].toFixed(1)}px`;
-    frames.push({ clipPath: `polygon(${pts})` });
-  }
-  return frames;
-}
-
-function runReveal(
-  mode: "drip" | "circle",
-  toDark: boolean,
-  swap: () => void,
-  origin: { x: number; y: number },
-) {
-  const W = window.innerWidth;
-  const H = window.innerHeight;
-  const root = document.documentElement;
-
-  const style = document.createElement("style");
-  style.textContent =
-    "::view-transition-old(root),::view-transition-new(root){animation:none!important;mix-blend-mode:normal;}" +
-    "::view-transition-new(root){clip-path:inset(0 0 100% 0);}"; // hidden until the animation starts
-  document.head.appendChild(style);
-
-  const vt = (document as any).startViewTransition(swap);
-
-  vt.ready
-    .then(() => {
-      let frames: Keyframe[];
-      let duration = MS;
-      let easing = "linear";
-
-      if (mode === "drip") {
-        frames = dripKeyframes(W, H, toDark);
-      } else {
-        const r = Math.hypot(
-          Math.max(origin.x, W - origin.x),
-          Math.max(origin.y, H - origin.y),
-        );
-        frames = [
-          { clipPath: `circle(0px at ${origin.x}px ${origin.y}px)` },
-          { clipPath: `circle(${r}px at ${origin.x}px ${origin.y}px)` },
-        ];
-        duration = 650;
-        easing = "cubic-bezier(0.4, 0, 0.2, 1)";
+  const tips: Field["tips"] = [];
+  const drops: Drop[] = [];
+  for (const f of fingers) {
+    if (!f.main) continue;
+    let best = 0;
+    let bd = 9;
+    for (let i = 0; i < n; i++) {
+      let d = Math.abs(th[i] - f.c);
+      d = Math.min(d, TAU - d);
+      if (d < bd) {
+        bd = d;
+        best = i;
       }
+    }
+    tips.push({ i: best, r: 5 + f.a * 6 });
+  }
 
-      root.animate(frames, {
-        duration,
-        easing,
-        fill: "forwards",
-        pseudoElement: "::view-transition-new(root)",
-      });
-    })
-    .catch(() => {});
+  const f0: Field = { n, th, bend, delay, dur, tips, drops, R, ox, oy };
 
-  vt.finished.finally(() => {
-    style.remove();
-    busy = false;
-  });
+  // a few droplets tear off the tendrils and fall
+  const xs = new Float32Array(n);
+  const ys = new Float32Array(n);
+  const dn = coarse ? 4 : 9;
+  for (let k = 0; k < dn; k++) {
+    const tip = tips[Math.floor(Math.random() * tips.length)];
+    const u = rnd(0.28, 0.62);
+    outline(f0, u, xs, ys);
+    const x = xs[tip.i];
+    const y = ys[tip.i];
+    if (x < 10 || x > W - 10 || y < 10 || y > H - 10) continue;
+    const ang = Math.atan2(y - oy, x - ox);
+    const sp = rnd(40, 140);
+    drops.push({
+      ts: u * (MS / 1000),
+      x,
+      y,
+      vx: Math.cos(ang) * sp,
+      vy: Math.sin(ang) * sp - rnd(0, 60),
+      r: rnd(3.5, 7),
+    });
+  }
+  return f0;
+}
+
+/** outline at progress u (0..1) into xs/ys */
+function outline(f: Field, u: number, xs: Float32Array, ys: Float32Array) {
+  const r0 = 14 * Math.min(1, u * 12); // starts as a button-sized blob
+  for (let i = 0; i < f.n; i++) {
+    const p = clamp((u - f.delay[i]) / f.dur[i], 0, 1);
+    const r = Math.max(ease(p) * f.R, r0);
+    const a = f.th[i] + f.bend[i] * Math.min(1, r / f.R) * 1.1;
+    xs[i] = f.ox + Math.cos(a) * r;
+    ys[i] = f.oy + Math.sin(a) * r;
+  }
+}
+
+type Frames = { xs: Float32Array[]; ys: Float32Array[] };
+
+function buildFrames(f: Field, count: number): Frames {
+  const xs: Float32Array[] = [];
+  const ys: Float32Array[] = [];
+  for (let k = 0; k <= count; k++) {
+    const x = new Float32Array(f.n);
+    const y = new Float32Array(f.n);
+    outline(f, k / count, x, y);
+    xs.push(x);
+    ys.push(y);
+  }
+  return { xs, ys };
 }
 
 /* ------------------------------------------------------------------ */
-/* Tier 3: canvas fallback (no View Transitions support)              */
+/* Drawing the glossy goo                                             */
 /* ------------------------------------------------------------------ */
 
-function drawCanvas(
+type Look = { goo: string; sheen: string; shade: string; spec: string };
+
+const LOOK_DARK: Look = {
+  goo: "#030208",
+  sheen: "rgba(170,150,255,0.38)",
+  shade: "rgba(110,70,255,0.16)",
+  spec: "rgba(255,255,255,0.75)",
+};
+const LOOK_LIGHT: Look = {
+  goo: "#f3f3f9",
+  sheen: "rgba(255,255,255,0.95)",
+  shade: "rgba(20,20,70,0.2)",
+  spec: "rgba(20,20,70,0.35)",
+};
+
+function gooPath(f: Field, xs: Float32Array, ys: Float32Array) {
+  const n = f.n;
+  const p = new Path2D();
+  p.moveTo((xs[n - 1] + xs[0]) / 2, (ys[n - 1] + ys[0]) / 2);
+  for (let i = 0; i < n; i++) {
+    const j = i + 1 === n ? 0 : i + 1;
+    p.quadraticCurveTo(xs[i], ys[i], (xs[i] + xs[j]) / 2, (ys[i] + ys[j]) / 2);
+  }
+  p.closePath();
+  return p;
+}
+
+function drawGoo(
   ctx: CanvasRenderingContext2D,
   f: Field,
+  xs: Float32Array,
+  ys: Float32Array,
   W: number,
   H: number,
-  u: number,
+  look: Look,
+  tsec: number,
+  fill: boolean,
+  coarse: boolean,
 ) {
-  solve(f, u);
-  const { xs, ys } = f;
-  const last = xs.length - 1;
-
-  const trace = (p: Path2D, moveFirst: boolean) => {
-    if (moveFirst) p.moveTo(xs[0], ys[0]);
-    p.lineTo((xs[0] + xs[1]) / 2, (ys[0] + ys[1]) / 2);
-    for (let i = 1; i < last; i++)
-      p.quadraticCurveTo(
-        xs[i],
-        ys[i],
-        (xs[i] + xs[i + 1]) / 2,
-        (ys[i] + ys[i + 1]) / 2,
-      );
-    p.lineTo(xs[last], ys[last]);
-  };
-
   ctx.clearRect(0, 0, W, H);
-  const edge = new Path2D();
-  trace(edge, true);
-  const fill = new Path2D();
-  fill.moveTo(0, -4);
-  fill.lineTo(xs[0], ys[0]);
-  trace(fill, false);
-  fill.lineTo(W, -4);
-  fill.closePath();
-
-  ctx.fillStyle = PAINT;
-  ctx.fill(fill);
-  ctx.strokeStyle = SHEEN;
-  ctx.lineWidth = 2;
   ctx.lineJoin = "round";
-  ctx.stroke(edge);
+  ctx.lineCap = "round";
+  const path = gooPath(f, xs, ys);
 
-  for (const s of f.streams) {
-    const y = ys[s.i];
-    if (y < 10 || y > H + 6) continue;
-    const r = 4.5 + s.amp * 5;
-    ctx.fillStyle = PAINT;
+  if (fill) {
+    ctx.fillStyle = look.goo;
+    ctx.fill(path);
+  }
+  if (!coarse) {
+    ctx.strokeStyle = look.shade; // soft depth halo
+    ctx.lineWidth = 30;
+    ctx.stroke(path);
+  }
+  ctx.strokeStyle = look.goo; // solid wet rim
+  ctx.lineWidth = 14;
+  ctx.stroke(path);
+  ctx.save();
+  ctx.translate(-2.5, -2.5);
+  ctx.strokeStyle = look.sheen; // glossy highlight
+  ctx.lineWidth = 2;
+  ctx.stroke(path);
+  ctx.restore();
+
+  // heavy blobs at the tip of every tendril
+  for (const t of f.tips) {
+    const x = xs[t.i];
+    const y = ys[t.i];
+    if (x < -20 || x > W + 20 || y < -20 || y > H + 20) continue;
+    if (Math.hypot(x - f.ox, y - f.oy) < 16) continue;
+    ctx.fillStyle = look.goo;
     ctx.beginPath();
-    ctx.arc(s.x, y + r * 0.3, r, 0, 6.2832);
+    ctx.arc(x, y, t.r, 0, TAU);
     ctx.fill();
-    ctx.fillStyle = SHEEN;
+    ctx.fillStyle = look.spec;
     ctx.beginPath();
-    ctx.arc(s.x - r * 0.3, y + r * 0.05, r * 0.35, 0, 6.2832);
+    ctx.arc(x - t.r * 0.32, y - t.r * 0.34, t.r * 0.24, 0, TAU);
+    ctx.fill();
+  }
+
+  // droplets in free fall
+  for (const d of f.drops) {
+    const dt = tsec - d.ts;
+    if (dt < 0 || dt > 0.45) continue;
+    const x = d.x + d.vx * dt;
+    const y = d.y + d.vy * dt + 0.5 * 2600 * dt * dt;
+    if (y > H + 20) continue;
+    const r = d.r * (1 - dt / 0.6);
+    ctx.fillStyle = look.goo;
+    ctx.beginPath();
+    ctx.ellipse(x, y, r * 0.85, r * (1 + dt * 0.9), 0, 0, TAU);
+    ctx.fill();
+    ctx.fillStyle = look.spec;
+    ctx.beginPath();
+    ctx.arc(x - r * 0.3, y - r * 0.3, r * 0.22, 0, TAU);
     ctx.fill();
   }
 }
 
-function runCanvas(toDark: boolean, swap: () => void) {
-  const W = window.innerWidth;
-  const H = window.innerHeight;
-  const s = Math.min(1, Math.sqrt(1.1e6 / (W * H))); // cap pixels for weak GPUs
-
+function makeCanvas(W: number, H: number, cap: number) {
+  const s = Math.min(1, Math.sqrt(cap / (W * H)));
   const canvas = document.createElement("canvas");
   canvas.width = Math.max(1, Math.round(W * s));
   canvas.height = Math.max(1, Math.round(H * s));
@@ -254,75 +342,232 @@ function runCanvas(toDark: boolean, swap: () => void) {
     top: "0",
     width: "100%",
     height: "100%",
-    zIndex: "9990",
+    zIndex: "2147483000",
     pointerEvents: "none",
-    opacity: "1",
-    transition: "opacity 200ms ease-out",
   });
-  const ctx = canvas.getContext("2d");
+  const ctx = canvas.getContext("2d", { alpha: true });
+  if (ctx) ctx.scale(s, s);
+  return { canvas, ctx };
+}
+
+/* ------------------------------------------------------------------ */
+/* Tier 1: View Transitions (new theme revealed through the venom)    */
+/* ------------------------------------------------------------------ */
+
+function runVenom(
+  toDark: boolean,
+  swap: () => void,
+  origin: { x: number; y: number },
+  coarse: boolean,
+) {
+  const W = window.innerWidth;
+  const H = window.innerHeight;
+  const root = document.documentElement;
+
+  const FRAMES = coarse ? 22 : 28;
+  const field = buildField(W, H, origin.x, origin.y, coarse);
+  const n = field.n;
+  const frames = buildFrames(field, FRAMES);
+
+  const keyframes: Keyframe[] = [];
+  for (let k = 0; k <= FRAMES; k++) {
+    let pts = "";
+    for (let i = 0; i < n; i++)
+      pts += `${i ? "," : ""}${frames.xs[k][i].toFixed(0)}px ${frames.ys[k][i].toFixed(0)}px`;
+    keyframes.push({ clipPath: `polygon(${pts})` });
+  }
+
+  const style = document.createElement("style");
+  style.textContent =
+    "::view-transition-old(root),::view-transition-new(root){animation:none!important;mix-blend-mode:normal;}" +
+    `::view-transition-new(root){clip-path:circle(0px at ${origin.x}px ${origin.y}px);}`;
+  document.head.appendChild(style);
+
+  // leftover fill:forwards animations leak into the NEXT transition
+  for (const a of document.getAnimations()) {
+    const pe = (a.effect as KeyframeEffect | null)?.pseudoElement;
+    if (pe && pe.startsWith("::view-transition")) a.cancel();
+  }
+
+  const { canvas, ctx } = makeCanvas(W, H, coarse ? 0.55e6 : 1.0e6);
+  const look = toDark ? LOOK_DARK : LOOK_LIGHT;
+  const xs = new Float32Array(n);
+  const ys = new Float32Array(n);
+
+  let anim: Animation | null = null;
+  let raf = 0;
+  let done = false;
+  let guard = 0;
+
+  const finish = () => {
+    if (done) return;
+    done = true;
+    window.clearTimeout(guard);
+    cancelAnimationFrame(raf);
+    anim?.cancel();
+    canvas.remove();
+    style.remove();
+    root.classList.remove("theme-switching");
+    busy = false;
+  };
+  guard = window.setTimeout(finish, MS + 2500);
+
+  const vt = (document as any).startViewTransition(() => {
+    root.classList.add("theme-switching"); // clean snapshot, no colour fades
+    swap();
+  });
+
+  vt.ready
+    .then(() => {
+      anim = root.animate(keyframes, {
+        duration: MS,
+        easing: "linear",
+        fill: "forwards",
+        pseudoElement: "::view-transition-new(root)",
+      });
+      if (!ctx) return;
+      document.body.appendChild(canvas);
+
+      // rim drawn on exactly the same interpolated outline as the browser
+      const loop = () => {
+        if (done) return;
+        const t = clamp(Number(anim?.currentTime ?? 0) / MS, 0, 1);
+        const pos = t * FRAMES;
+        const k = Math.min(Math.floor(pos), FRAMES - 1);
+        const m = pos - k;
+        const ax = frames.xs[k],
+          bx = frames.xs[k + 1],
+          ay = frames.ys[k],
+          by = frames.ys[k + 1];
+        for (let i = 0; i < n; i++) {
+          xs[i] = ax[i] + (bx[i] - ax[i]) * m;
+          ys[i] = ay[i] + (by[i] - ay[i]) * m;
+        }
+        drawGoo(ctx, field, xs, ys, W, H, look, t * (MS / 1000), false, coarse);
+        if (t < 1) raf = requestAnimationFrame(loop);
+      };
+      raf = requestAnimationFrame(loop);
+    })
+    .catch(() => {});
+
+  vt.finished.finally(finish);
+}
+
+/* ------------------------------------------------------------------ */
+/* Tier 2: canvas fallback (no View Transitions support)              */
+/* ------------------------------------------------------------------ */
+
+function runCanvas(
+  toDark: boolean,
+  swap: () => void,
+  origin: { x: number; y: number },
+  coarse: boolean,
+) {
+  const W = window.innerWidth;
+  const H = window.innerHeight;
+  const { canvas, ctx } = makeCanvas(W, H, 0.8e6);
   if (!ctx) {
     swap();
     busy = false;
     return;
   }
-  ctx.scale(s, s);
 
-  const field = buildField(W, H, clamp(Math.round(W / 8), 60, 180));
+  const field = buildField(W, H, origin.x, origin.y, true);
+  const xs = new Float32Array(field.n);
+  const ys = new Float32Array(field.n);
+  const look = toDark ? LOOK_DARK : LOOK_LIGHT;
+  const root = document.documentElement;
+
+  let swapped = false;
+  const doSwap = () => {
+    if (swapped) return;
+    swapped = true;
+    root.classList.add("theme-switching");
+    swap();
+  };
+  let guard = 0;
   const cleanup = () => {
+    window.clearTimeout(guard);
+    doSwap();
+    root.classList.remove("theme-switching");
     canvas.remove();
     busy = false;
   };
+  guard = window.setTimeout(cleanup, MS + 2500);
 
-  let t0 = 0;
+  document.body.appendChild(canvas);
+  let prev = 0;
+  let elapsed = 0;
   const loop = (now: number) => {
-    if (!t0) t0 = now;
-    const t = (now - t0) / MS;
+    if (prev) elapsed += Math.min(now - prev, 34);
+    prev = now;
+    const t = elapsed / MS;
+    outline(field, Math.min(t, 1), xs, ys);
+    drawGoo(ctx, field, xs, ys, W, H, look, elapsed / 1000, true, coarse);
     if (t >= 1) {
-      if (toDark) {
-        drawCanvas(ctx, field, W, H, 1);
-        swap();
-        requestAnimationFrame(() => {
-          canvas.style.opacity = "0";
-          window.setTimeout(cleanup, 220);
-        });
-      } else {
-        cleanup();
-      }
+      doSwap();
+      canvas.style.transition = "opacity 240ms ease-out";
+      requestAnimationFrame(() => {
+        canvas.style.opacity = "0";
+        window.setTimeout(cleanup, 260);
+      });
       return;
     }
-    drawCanvas(ctx, field, W, H, toDark ? t : 1 - t);
     requestAnimationFrame(loop);
   };
-
-  if (toDark) {
-    document.body.appendChild(canvas);
-    requestAnimationFrame(loop);
-  } else {
-    // start fully covered, flip to light under the paint, then peel upward
-    drawCanvas(ctx, field, W, H, 1);
-    document.body.appendChild(canvas);
-    swap();
-    requestAnimationFrame(() => requestAnimationFrame(loop));
-  }
+  requestAnimationFrame(loop);
 }
 
 /* ------------------------------------------------------------------ */
 /* Tier picker + component                                            */
 /* ------------------------------------------------------------------ */
 
-type Tier = "drip" | "circle" | "canvas" | "instant";
+type Tier = "venom" | "canvas" | "instant";
 
 function pickTier(): Tier {
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches)
     return "instant";
+  return typeof (document as any).startViewTransition === "function"
+    ? "venom"
+    : "canvas";
+}
+
+/** Toggle the theme; `from` is the element clicked (the venom oozes out of it). */
+export function toggleTheme(from: Element) {
+  if (busy) return;
+  const root = document.documentElement;
+  const toDark = root.dataset.theme !== "dark";
+  const next = toDark ? "dark" : "light";
+
+  const apply = () => {
+    root.dataset.theme = next;
+    try {
+      sessionStorage.setItem("theme", next);
+    } catch {}
+  };
+
+  const tier = pickTier();
+  if (tier === "instant") {
+    apply();
+    return;
+  }
+
+  const r = from.getBoundingClientRect();
+  const origin = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
   const nav = navigator as any;
-  const hasVT = typeof (document as any).startViewTransition === "function";
-  if (!hasVT) return "canvas";
-  const weak =
+  const coarse =
+    window.matchMedia("(pointer: coarse)").matches ||
     (nav.hardwareConcurrency ?? 8) <= 4 ||
-    (nav.deviceMemory ?? 8) <= 4 ||
-    nav.connection?.saveData === true;
-  return weak ? "circle" : "drip";
+    (nav.deviceMemory ?? 8) <= 4;
+
+  busy = true;
+  try {
+    if (tier === "venom") runVenom(toDark, apply, origin, coarse);
+    else runCanvas(toDark, apply, origin, coarse);
+  } catch {
+    apply(); // never leave the user without a working toggle
+    busy = false;
+  }
 }
 
 export default function ThemeToggle({
@@ -330,41 +575,7 @@ export default function ThemeToggle({
 }: {
   className?: string;
 }) {
-  const toggle = (e: MouseEvent<HTMLButtonElement>) => {
-    if (busy) return;
-    const root = document.documentElement;
-    const toDark = root.dataset.theme !== "dark";
-    const next = toDark ? "dark" : "light";
-
-    const apply = () => {
-      root.dataset.theme = next;
-      try {
-        sessionStorage.setItem("theme", next);
-      } catch {}
-    };
-
-    const tier = pickTier();
-    if (tier === "instant") {
-      apply();
-      return;
-    }
-
-    busy = true;
-    try {
-      if (tier === "canvas") {
-        runCanvas(toDark, apply);
-      } else {
-        const r = e.currentTarget.getBoundingClientRect();
-        runReveal(tier, toDark, apply, {
-          x: r.left + r.width / 2,
-          y: r.top + r.height / 2,
-        });
-      }
-    } catch {
-      apply(); // never leave the user without a working toggle
-      busy = false;
-    }
-  };
+  const toggle = (e: MouseEvent<HTMLButtonElement>) => toggleTheme(e.currentTarget);
 
   return (
     <button

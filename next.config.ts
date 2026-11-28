@@ -13,7 +13,7 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     // Import only the icons / motion helpers that are actually used.
-    optimizePackageImports: ['lucide-react', 'motion/react', 'react-icons/si'],
+    optimizePackageImports: ['lucide-react', 'motion/react', 'react-icons/si', 'react-icons/pi'],
   },
   output: 'standalone',
   async headers() {

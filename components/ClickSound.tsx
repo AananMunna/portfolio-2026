@@ -3,10 +3,9 @@
 import { useEffect } from 'react';
 
 /**
- * One sweet little "tink" for every click on something clickable (link,
- * button, card). Clicks on empty space stay silent.
- *
- * Synthesised with the Web Audio API, so there is no audio file to download.
+ * A short, bright two-note notification-style "ping" for every click on
+ * something clickable (link, button, card, dock icon). Clicks on empty space
+ * stay silent. Synthesised with the Web Audio API: no audio file to download.
  */
 
 const CLICKABLE =
@@ -23,6 +22,27 @@ function getCtx() {
   return ctx;
 }
 
+function bell(ac: AudioContext, out: AudioNode, t: number, freq: number, level: number, ring: number) {
+  // glassy bell: fundamental + inharmonic partials (2.76x, 5.4x) that die faster
+  const parts: [number, number, number][] = [
+    [1, 1, 1],
+    [2.76, 0.22, 0.45],
+    [5.4, 0.07, 0.22],
+  ];
+  for (const [ratio, amp, life] of parts) {
+    const o = ac.createOscillator();
+    const g = ac.createGain();
+    o.type = 'sine';
+    o.frequency.value = freq * ratio;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(level * amp, t + 0.002);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + ring * life);
+    o.connect(g).connect(out);
+    o.start(t);
+    o.stop(t + ring * life + 0.02);
+  }
+}
+
 function pop() {
   const ac = getCtx();
   if (!ac) return;
@@ -30,46 +50,17 @@ function pop() {
 
   const now = ac.currentTime;
   const master = ac.createGain();
-  master.gain.value = 0.85;
+  master.gain.value = 0.8;
   const lp = ac.createBiquadFilter();
   lp.type = 'lowpass';
-  lp.frequency.value = 6000;
+  lp.frequency.value = 9000;
   master.connect(lp).connect(ac.destination);
 
-  // A small mallet / music-box "tink": a C6 with soft upper partials.
-  // Quick 3 ms attack, smooth ~160 ms ring-out. Sweet, never sharp.
-  const partials: [number, number, number][] = [
-    [1046.5, 0.2, 0.16], // C6 (fundamental)
-    [2093.0, 0.07, 0.1], // C7
-    [3136.0, 0.025, 0.06], // G7, a faint sparkle
-  ];
-  for (const [freq, level, ring] of partials) {
-    const o = ac.createOscillator();
-    const g = ac.createGain();
-    o.type = 'sine';
-    o.frequency.setValueAtTime(freq * 1.012, now); // tiny settle makes it feel soft
-    o.frequency.exponentialRampToValueAtTime(freq, now + 0.025);
-    g.gain.setValueAtTime(0.0001, now);
-    g.gain.exponentialRampToValueAtTime(level, now + 0.003);
-    g.gain.exponentialRampToValueAtTime(0.0001, now + ring);
-    o.connect(g).connect(master);
-    o.start(now);
-    o.stop(now + ring + 0.02);
-  }
-
-  // a whisper of "tap" under it so it still reads as a click
-  const buf = ac.createBuffer(1, Math.floor(ac.sampleRate * 0.012), ac.sampleRate);
-  const d = buf.getChannelData(0);
-  for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 4);
-  const n = ac.createBufferSource();
-  n.buffer = buf;
-  const f = ac.createBiquadFilter();
-  f.type = 'lowpass';
-  f.frequency.value = 2200;
-  const ng = ac.createGain();
-  ng.gain.value = 0.18;
-  n.connect(f).connect(ng).connect(master);
-  n.start(now);
+  // Two quick notes rising a fourth (G6 -> C7). A rising interval resolves
+  // upward like a "ping, you got something" notification: bright, short and
+  // light. Total length is ~0.3 s so it never drags on repeated clicks.
+  bell(ac, master, now, 1568.0, 0.13, 0.16);
+  bell(ac, master, now + 0.07, 2093.0, 0.16, 0.26);
 }
 
 export default function ClickSound() {
@@ -87,7 +78,7 @@ export default function ClickSound() {
       if (!el) return;
       if ((el as HTMLButtonElement).disabled || el.getAttribute('aria-disabled') === 'true') return;
       const t = performance.now();
-      if (t - lastPlay < 60) return; // nested clickables fire once
+      if (t - lastPlay < 110) return; // nested clickables fire once
       lastPlay = t;
       pop();
     };
