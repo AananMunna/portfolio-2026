@@ -180,6 +180,25 @@ useEffect(() => {
     return () => window.removeEventListener("scroll", throttled);
   }, [pathname]);
 
+  /* ── macOS-style auto-hide: nudge the pointer to the bottom edge to bring the dock back ── */
+  useEffect(() => {
+    if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+    let byEdge = false;
+    const onMove = (e: PointerEvent) => {
+      if (e.pointerType !== "mouse" || window.scrollY < 90) return;
+      const fromBottom = window.innerHeight - e.clientY;
+      if (fromBottom < 56) {
+        byEdge = true;
+        setShowDock(true);
+      } else if (byEdge && fromBottom > 130) {
+        byEdge = false;
+        setShowDock(false);
+      }
+    };
+    window.addEventListener("pointermove", onMove, { passive: true });
+    return () => window.removeEventListener("pointermove", onMove);
+  }, []);
+
   /* ── active section on home ── */
   useEffect(() => {
     if (!isHome) return;

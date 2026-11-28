@@ -96,7 +96,7 @@ function useMagnify(
   return useSpring(raw, { stiffness: 420, damping: 30, mass: 0.4 });
 }
 
-type Entry = { id: string; label: string; Icon: LucideIcon; cls: string };
+type Entry = { id: string; label: string; Icon: LucideIcon; cls: string; badge?: boolean };
 
 /** `cls` sets visibility + visual order: phones get 2 · Home · 2, desktop 3 · Home · 3 */
 const ENTRIES: Entry[] = [
@@ -105,7 +105,7 @@ const ENTRIES: Entry[] = [
   { id: "work", label: "Projects", Icon: FolderGit2, cls: "flex order-1 sm:order-3" },
   { id: "about", label: "About", Icon: User, cls: "flex order-2 sm:order-5" },
   { id: "blog", label: "Blog", Icon: BookOpen, cls: "flex order-4 sm:order-6" },
-  { id: "contact", label: "Contact", Icon: Mail, cls: "flex order-5 sm:order-7" },
+  { id: "contact", label: "Contact", Icon: Mail, cls: "flex order-5 sm:order-7", badge: true },
 ];
 
 function Slot({
@@ -114,6 +114,7 @@ function Slot({
   label,
   active,
   hop = true,
+  badge,
   onPress,
   className,
   children,
@@ -123,11 +124,13 @@ function Slot({
   label: string;
   active?: boolean;
   hop?: boolean;
+  badge?: boolean;
   onPress: (el: Element) => void;
   className?: string;
   children: React.ReactNode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const tileRef = useRef<HTMLDivElement>(null);
   const bounce = useAnimationControls();
   const scale = useMagnify(mouseX, ref, layout.peak);
   const magnifies = layout.peak > 1;
@@ -168,11 +171,14 @@ function Slot({
               transition: { duration: layout.peak > 1 ? 0.65 : 0.32, ease: "easeOut" },
             });
           }
-          onPress(e.currentTarget);
+          // the visible icon tile (not the whole hit area) is where effects such as
+          // the theme venom should originate from
+          onPress(tileRef.current ?? e.currentTarget);
         }}
         className="hover-target relative flex h-full w-full flex-col items-center rounded-[20px] outline-none focus-visible:ring-2 focus-visible:ring-accent"
       >
         <motion.div
+          ref={tileRef}
           style={{ scale, y: lift, transformOrigin: "50% 100%", width: layout.tile, height: layout.tile }}
           className="relative"
         >
@@ -187,6 +193,12 @@ function Slot({
             data-active={active ? "1" : undefined}
           >
             {children}
+            {badge && (
+              <span aria-hidden className="absolute right-[14%] top-[14%] h-2 w-2">
+                <span className="absolute inset-0 animate-ping rounded-full bg-accent opacity-60" />
+                <span className="absolute inset-0 rounded-full bg-accent ring-2 ring-[var(--dock-ring)]" />
+              </span>
+            )}
           </motion.div>
         </motion.div>
         <span className="dock-label mt-[3px]" data-active={active ? "1" : undefined}>
@@ -311,6 +323,7 @@ export default function Dock({
                 label={e.label}
                 active={active === e.id}
                 className={e.cls}
+                badge={e.badge}
                 onPress={() => onGo(e.id)}
               >
                 <e.Icon className="h-[50%] w-[50%]" strokeWidth={1.7} />
