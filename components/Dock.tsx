@@ -7,6 +7,7 @@ import {
   useAnimationControls,
   useMotionValue,
   useReducedMotion,
+  useScroll,
   useSpring,
   useTransform,
   type MotionValue,
@@ -27,31 +28,29 @@ import {
 import { toggleTheme } from "./ThemeToggle";
 
 /**
- * Floating dock: frosted pill, raised glowing Home orb in the middle, labelled
- * icons on both sides.
+ * Floating dock.
  *
- * Interaction is modelled on the macOS Dock:
- *  - icons magnify smoothly as the pointer travels along the bar, and the
- *    neighbours really make room (layout, not just a transform)
- *  - the bar grows upward from its bottom edge, like the real thing
- *  - clicking an icon makes it bounce
- *  - touch / coarse pointers skip the magnification and just get a press-in feel
+ *  - Clean glyphs + labels at rest. No boxes, nothing busy.
+ *  - The active page gets a soft emerald capsule that glides between items.
+ *  - Home is a raised orb; the ring around it fills as you scroll the page.
+ *  - Mouse: macOS-style magnification. Each icon lifts out of the bar on a
+ *    glass tile that fades in as it grows. The bar itself never resizes, so
+ *    nothing jitters.
+ *  - Touch: big 50px targets, press-in feel, tiny haptic tick.
  */
 
-const LABEL_H = 18; // label row under every icon (px)
-const REACH = 150; // how far from the pointer an icon still feels it (px)
+const REACH = 140; // px of influence either side of the pointer
 
-type Sizes = { base: number; peak: number; orb: number; orbPeak: number };
+type Layout = { slot: number; tile: number; orb: number; peak: number; orbPeak: number };
 
-function sizesFor(wide: boolean, fine: boolean, reduce: boolean): Sizes {
-  const base = wide ? 46 : 40;
-  const orb = wide ? 62 : 54;
+function layoutFor(wide: boolean, fine: boolean, reduce: boolean): Layout {
   const magnify = fine && !reduce;
   return {
-    base,
-    orb,
-    peak: magnify ? (wide ? 76 : 62) : base,
-    orbPeak: magnify ? (wide ? 88 : 72) : orb,
+    slot: wide ? 58 : 50,
+    tile: wide ? 44 : 40,
+    orb: wide ? 66 : 58,
+    peak: magnify ? 1.62 : 1,
+    orbPeak: magnify ? 1.2 : 1,
   };
 }
 
@@ -78,12 +77,28 @@ const haptic = () => {
   } catch {}
 };
 
+/** spring-smoothed scale that peaks when the pointer is over the element */
+function useMagnify(
+  mouseX: MotionValue<number>,
+  ref: React.RefObject<HTMLElement | null>,
+  peak: number,
+) {
+  const dist = useTransform(mouseX, (x) => {
+    const r = ref.current?.getBoundingClientRect();
+    return r ? x - (r.left + r.width / 2) : 9999;
+  });
+  const shoulder = 1 + (peak - 1) * 0.32;
+  const raw = useTransform(
+    dist,
+    [-REACH, -REACH * 0.5, 0, REACH * 0.5, REACH],
+    [1, shoulder, peak, shoulder, 1],
+  );
+  return useSpring(raw, { stiffness: 420, damping: 30, mass: 0.4 });
+}
+
 type Entry = { id: string; label: string; Icon: LucideIcon; cls: string };
 
-/**
- * `cls` sets visibility and the visual order, so phones get a balanced
- * 2 · Home · 2 layout while desktop shows the full 3 · Home · 3.
- */
+/** `cls` sets visibility + visual order: phones get 2 · Home · 2, desktop 3 · Home · 3 */
 const ENTRIES: Entry[] = [
   { id: "experience", label: "Work", Icon: Briefcase, cls: "hidden sm:flex order-1" },
   { id: "skills", label: "Stack", Icon: Code2, cls: "hidden sm:flex order-2" },
@@ -95,123 +110,158 @@ const ENTRIES: Entry[] = [
 
 function Slot({
   mouseX,
-  sizes,
+  layout,
   label,
   active,
-  orb,
-  bounce: canBounce = true,
+  hop = true,
   onPress,
   className,
   children,
 }: {
   mouseX: MotionValue<number>;
-  sizes: Sizes;
+  layout: Layout;
   label: string;
   active?: boolean;
-  orb?: boolean;
-  bounce?: boolean;
+  hop?: boolean;
   onPress: (el: Element) => void;
   className?: string;
   children: React.ReactNode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const bounce = useAnimationControls();
-
-  const base = orb ? sizes.orb : sizes.base;
-  const peak = orb ? sizes.orbPeak : sizes.peak;
-
-  // distance between the pointer and this icon's centre
-  const dist = useTransform(mouseX, (x) => {
-    const r = ref.current?.getBoundingClientRect();
-    return r ? x - (r.left + r.width / 2) : 9999;
-  });
-  const lift = (peak - base) * 0.3;
-  const raw = useTransform(
-    dist,
-    [-REACH, -REACH * 0.5, 0, REACH * 0.5, REACH],
-    [base, base + lift, peak, base + lift, base],
+  const scale = useMagnify(mouseX, ref, layout.peak);
+  const magnifies = layout.peak > 1;
+  // (no magnification → degenerate input ranges, so fall back to constants)
+  const lift = useTransform(scale, magnifies ? [1, layout.peak] : [0, 1], magnifies ? [0, -(layout.peak - 1) * 14] : [0, 0]);
+  const reveal = useTransform(
+    scale,
+    magnifies ? [1, 1 + (layout.peak - 1) * 0.55, layout.peak] : [0, 1],
+    magnifies ? [0, 0.85, 1] : [0, 0],
   );
-  const size = useSpring(raw, { stiffness: 380, damping: 28, mass: 0.45 });
-
-  const press = (e: React.MouseEvent<HTMLButtonElement>) => {
-    haptic();
-    if (canBounce && peak !== base) {
-      bounce.start({
-        y: [0, -16, 0, -8, 0],
-        transition: { duration: 0.7, times: [0, 0.3, 0.56, 0.78, 1], ease: "easeOut" },
-      });
-    } else if (canBounce) {
-      bounce.start({
-        y: [0, -8, 0],
-        transition: { duration: 0.35, ease: "easeOut" },
-      });
-    }
-    onPress(e.currentTarget);
-  };
-
-  const button = (
-    <motion.button
-      type="button"
-      aria-label={label}
-      aria-current={active ? "page" : undefined}
-      onClick={press}
-      whileTap={{ scale: 0.88 }}
-      transition={{ type: "spring", stiffness: 600, damping: 26 }}
-      className={
-        orb
-          ? "dock-orb hover-target grid h-full w-full place-items-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-accent"
-          : "dock-tile hover-target grid h-full w-full place-items-center rounded-[26%] outline-none focus-visible:ring-2 focus-visible:ring-accent"
-      }
-      data-active={active ? "1" : undefined}
-    >
-      {children}
-    </motion.button>
-  );
-
-  if (orb) {
-    return (
-      <motion.div
-        ref={ref}
-        style={{ width: size, height: sizes.base + LABEL_H }}
-        className={`relative shrink-0 ${className ?? ""}`}
-      >
-        <motion.div
-          animate={bounce}
-          style={{ height: size, bottom: LABEL_H + 8 }}
-          className="absolute left-0 w-full"
-        >
-          {button}
-        </motion.div>
-      </motion.div>
-    );
-  }
 
   return (
-    <motion.div
+    <div
       ref={ref}
-      style={{ width: size }}
-      className={`relative shrink-0 flex-col items-center ${className ?? ""}`}
+      style={{ width: layout.slot }}
+      className={`relative shrink-0 ${className ?? ""}`}
     >
-      <motion.div animate={bounce} style={{ height: size }} className="w-full">
-        {button}
-      </motion.div>
-      <span
-        className="pointer-events-none mt-1 whitespace-nowrap text-[10px] font-medium leading-[14px] tracking-tight sm:text-[10.5px]"
-        style={{
-          color: active
-            ? "var(--phosphor)"
-            : "color-mix(in srgb, var(--text) 62%, transparent)",
+      {active && (
+        <motion.span
+          layoutId="dock-active"
+          aria-hidden
+          className="dock-active absolute -inset-x-px -bottom-1.5 -top-1 rounded-[20px]"
+          transition={{ type: "spring", stiffness: 520, damping: 38 }}
+        />
+      )}
+
+      <motion.button
+        type="button"
+        aria-label={label}
+        aria-current={active ? "page" : undefined}
+        whileTap={{ scale: 0.9 }}
+        transition={{ type: "spring", stiffness: 600, damping: 26 }}
+        onClick={(e) => {
+          haptic();
+          if (hop) {
+            bounce.start({
+              y: layout.peak > 1 ? [0, -14, 0, -6, 0] : [0, -6, 0],
+              transition: { duration: layout.peak > 1 ? 0.65 : 0.32, ease: "easeOut" },
+            });
+          }
+          onPress(e.currentTarget);
         }}
+        className="hover-target relative flex h-full w-full flex-col items-center rounded-[20px] outline-none focus-visible:ring-2 focus-visible:ring-accent"
       >
-        {label}
-      </span>
-      <span
-        aria-hidden
-        className={`absolute -bottom-[8px] left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-accent transition-opacity duration-200 ${
-          active ? "opacity-100" : "opacity-0"
-        }`}
-      />
-    </motion.div>
+        <motion.div
+          style={{ scale, y: lift, transformOrigin: "50% 100%", width: layout.tile, height: layout.tile }}
+          className="relative"
+        >
+          <motion.span
+            aria-hidden
+            style={{ opacity: reveal }}
+            className="dock-lift absolute inset-0 rounded-[28%]"
+          />
+          <motion.div
+            animate={bounce}
+            className="dock-glyph relative grid h-full w-full place-items-center"
+            data-active={active ? "1" : undefined}
+          >
+            {children}
+          </motion.div>
+        </motion.div>
+        <span className="dock-label mt-[3px]" data-active={active ? "1" : undefined}>
+          {label}
+        </span>
+      </motion.button>
+    </div>
+  );
+}
+
+/** Raised Home orb with a scroll-progress ring */
+function Orb({
+  mouseX,
+  layout,
+  active,
+  onPress,
+}: {
+  mouseX: MotionValue<number>;
+  layout: Layout;
+  active: boolean;
+  onPress: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const bounce = useAnimationControls();
+  const scale = useMagnify(mouseX, ref, layout.orbPeak);
+  const { scrollYProgress } = useScroll();
+  const progress = useSpring(scrollYProgress, { stiffness: 140, damping: 32, mass: 0.4 });
+
+  return (
+    <div
+      ref={ref}
+      style={{ width: layout.slot + 14, height: layout.tile + 18 }}
+      className="relative order-3 shrink-0 sm:order-4"
+    >
+      <motion.div
+        animate={bounce}
+        className="absolute bottom-[19px] left-1/2 -translate-x-1/2"
+      >
+        <motion.button
+          type="button"
+          aria-label="Home"
+          aria-current={active ? "page" : undefined}
+          whileTap={{ scale: 0.9 }}
+          transition={{ type: "spring", stiffness: 600, damping: 26 }}
+          style={{ scale, transformOrigin: "50% 100%", width: layout.orb, height: layout.orb }}
+          onClick={() => {
+            haptic();
+            bounce.start({
+              y: [0, -14, 0, -6, 0],
+              transition: { duration: 0.65, ease: "easeOut" },
+            });
+            onPress();
+          }}
+          className="dock-orb-ring hover-target group relative grid place-items-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          data-active={active ? "1" : undefined}
+        >
+          <svg viewBox="0 0 64 64" aria-hidden className="absolute inset-0 h-full w-full -rotate-90">
+            <circle cx="32" cy="32" r="29.5" fill="none" stroke="var(--line-strong)" strokeWidth="1.5" />
+            <motion.circle
+              cx="32"
+              cy="32"
+              r="29.5"
+              fill="none"
+              stroke="var(--phosphor)"
+              strokeWidth="2.25"
+              strokeLinecap="round"
+              style={{ pathLength: progress }}
+            />
+          </svg>
+          <span className="dock-orb absolute inset-[7px] grid place-items-center rounded-full">
+            <Home className="h-[46%] w-[46%] transition-transform duration-300 group-hover:scale-110" strokeWidth={2.1} />
+          </span>
+        </motion.button>
+      </motion.div>
+    </div>
   );
 }
 
@@ -229,20 +279,20 @@ export default function Dock({
   const mouseX = useMotionValue(9999);
   const reduce = useReducedMotion() ?? false;
   const { wide, fine } = useDockMode();
-  const sizes = sizesFor(wide, fine, reduce);
+  const layout = layoutFor(wide, fine, reduce);
 
   return (
     <AnimatePresence>
       {visible && (
         <motion.div
-          initial={{ y: 100, opacity: 0, scale: 0.96 }}
+          initial={{ y: 110, opacity: 0, scale: 0.94 }}
           animate={{ y: 0, opacity: 1, scale: 1 }}
-          exit={{ y: 100, opacity: 0, scale: 0.96 }}
-          transition={{ type: "spring", stiffness: 380, damping: 34 }}
+          exit={{ y: 110, opacity: 0, scale: 0.94 }}
+          transition={{ type: "spring", stiffness: 360, damping: 34 }}
           className="pointer-events-none fixed left-1/2 z-50 max-w-[calc(100vw-0.75rem)] -translate-x-1/2"
           style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)" }}
         >
-          {/* keyed so the magnification curves are rebuilt when the sizes change */}
+          {/* keyed so the magnification curves are rebuilt when sizes change */}
           <div
             key={`${wide}-${fine}-${reduce}`}
             role="navigation"
@@ -251,13 +301,13 @@ export default function Dock({
               if (e.pointerType === "mouse") mouseX.set(e.clientX);
             }}
             onPointerLeave={() => mouseX.set(9999)}
-            className="dock-glass pointer-events-auto flex items-end gap-1 rounded-full px-3 pb-[14px] pt-2.5 sm:gap-1.5 sm:px-4"
+            className="dock-glass pointer-events-auto relative flex items-end rounded-full px-2 pb-2.5 pt-2 sm:px-3"
           >
             {ENTRIES.map((e) => (
               <Slot
                 key={e.id}
                 mouseX={mouseX}
-                sizes={sizes}
+                layout={layout}
                 label={e.label}
                 active={active === e.id}
                 className={e.cls}
@@ -267,29 +317,18 @@ export default function Dock({
               </Slot>
             ))}
 
-            {/* raised Home orb */}
-            <Slot
-              orb
-              mouseX={mouseX}
-              sizes={sizes}
-              label="Home"
-              active={active === "home"}
-              className="flex order-3 sm:order-4"
-              onPress={() => onGo("home")}
-            >
-              <Home className="h-[46%] w-[46%]" strokeWidth={2} />
-            </Slot>
+            <Orb mouseX={mouseX} layout={layout} active={active === "home"} onPress={() => onGo("home")} />
 
             <span
               aria-hidden
-              className="order-6 mx-0.5 mb-[22px] hidden h-8 w-px self-end bg-fg/15 min-[380px]:block sm:order-8 sm:mb-[26px] sm:h-10"
+              className="order-6 mx-1 mb-5 h-7 w-px self-end bg-fg/12 sm:order-8"
             />
 
             <Slot
               mouseX={mouseX}
-              sizes={sizes}
+              layout={layout}
               label="Theme"
-              bounce={false}
+              hop={false}
               className="flex order-7 sm:order-9"
               onPress={toggleTheme}
             >
@@ -299,9 +338,9 @@ export default function Dock({
 
             <Slot
               mouseX={mouseX}
-              sizes={sizes}
+              layout={layout}
               label="Menu"
-              bounce={false}
+              hop={false}
               className="hidden order-10 sm:flex"
               onPress={onMenu}
             >
